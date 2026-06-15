@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#6366f1" />
+  <meta name="description" content="Track shifts and calculate your salary with morning, evening and night rates." />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="ShiftPay" />
+  <title>ShiftPay — Salary Calculator</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- ============ LANGUAGE SELECT (first run) ============ -->
+  <section id="lang-screen" class="screen lang-screen" hidden>
+    <div class="lang-hero">
+      <div class="onb-logo">💸</div>
+      <h1>ShiftPay</h1>
+      <p class="lang-title">Language · שפה · اللغة · Язык</p>
+    </div>
+    <div id="lang-grid" class="lang-grid"></div>
+  </section>
+
+  <!-- ============ ONBOARDING ============ -->
+  <section id="onboarding" class="screen onboarding" hidden>
+    <div class="onb-hero">
+      <div class="onb-logo">💸</div>
+      <h1>ShiftPay</h1>
+      <p class="onb-sub" data-i18n="onb_tagline">Track your shifts. Know your pay — to the minute.</p>
+    </div>
+
+    <form id="onb-form" class="onb-card" autocomplete="off">
+      <label class="field">
+        <span class="field-label"><span data-i18n="onb_name">Your name</span> <span class="req">*</span></span>
+        <input id="onb-name" type="text" inputmode="text" placeholder="e.g. Alex" data-i18n-ph="onb_name_ph" required maxlength="40" />
+      </label>
+
+      <label class="field">
+        <span class="field-label"><span data-i18n="onb_wage">Hourly wage</span> <span class="req">*</span></span>
+        <div class="rate-row">
+          <input id="onb-currency" class="cur-input" type="text" value="₪" maxlength="3" aria-label="Currency symbol" />
+          <input id="onb-rate" type="number" inputmode="decimal" placeholder="0.00" min="0" step="0.01" required />
+          <span class="rate-suffix">/hr</span>
+        </div>
+        <span class="field-hint" data-i18n="onb_hint">Everything builds on this: daily 100/125/150% tiers, the Friday weekly-42 h rule, paid vacation (8.6 h) and unpaid breaks.</span>
+      </label>
+
+      <button type="submit" class="btn-primary btn-block" data-i18n="onb_start">Get started →</button>
+    </form>
+
+    <div class="onb-rates">
+      <div class="rate-chip"><span class="dot dot-morning"></span><span data-i18n="chip_morning">Morning · tiered</span></div>
+      <div class="rate-chip"><span class="dot dot-evening"></span><span data-i18n="chip_evening">Evening · 125→150%</span></div>
+      <div class="rate-chip"><span class="dot dot-night"></span><span data-i18n="chip_night">Night · 150%</span></div>
+      <div class="rate-chip"><span class="dot dot-friday"></span><span data-i18n="chip_friday">Friday · 42h weekly</span></div>
+      <div class="rate-chip"><span class="dot dot-vac"></span><span data-i18n="chip_vacation">Vacation · 8.6h</span></div>
+    </div>
+  </section>
+
+  <!-- ============ MAIN APP ============ -->
+  <main id="app" class="screen" hidden>
+    <!-- Hero header with month summary -->
+    <header class="hero">
+      <div class="hero-top">
+        <div class="greet">
+          <span class="greet-hi" id="greet-hi">Hi, there 👋</span>
+        </div>
+        <button id="btn-settings" class="icon-btn" aria-label="Settings">⚙️</button>
+      </div>
+
+      <div class="month-nav">
+        <button id="prev-month" class="icon-btn ghost" aria-label="Previous month">‹</button>
+        <button id="month-label" class="month-label" aria-label="Jump to today">June 2026</button>
+        <button id="next-month" class="icon-btn ghost" aria-label="Next month">›</button>
+      </div>
+
+      <div class="summary">
+        <div class="summary-main">
+          <span class="summary-cap" data-i18n="earned">Earned this month</span>
+          <span id="month-total" class="summary-amount">₪0.00</span>
+        </div>
+        <div class="summary-stats">
+          <div class="stat"><span id="month-hours" class="stat-num">0</span><span class="stat-cap" data-i18n="stat_hours">hours</span></div>
+          <div class="stat"><span id="month-shifts" class="stat-num">0</span><span class="stat-cap" data-i18n="stat_shifts">entries</span></div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Calendar -->
+    <section class="cal-wrap">
+      <div class="weekdays" id="weekdays"></div>
+      <div id="calendar" class="calendar"></div>
+      <p id="empty-hint" class="empty-hint" hidden data-i18n-html="empty_hint">No shifts this month yet.<br/>Tap <b>any day</b> above — or <b>＋ Today</b> — to log your first shift.</p>
+      <p class="cal-tip" data-i18n="cal_tip">💡 Tap any day to add or edit a shift.</p>
+    </section>
+
+    <!-- Rate legend -->
+    <section class="legend">
+      <div class="legend-item"><span class="dot dot-morning"></span><b data-i18n="leg_morning">Morning</b><span data-i18n="leg_d_morning">9h 100% · +2h 125% · then 150%</span></div>
+      <div class="legend-item"><span class="dot dot-evening"></span><b data-i18n="leg_evening">Evening</b><span data-i18n="leg_d_evening">until 23:00 125% · 23:00+ 150%</span></div>
+      <div class="legend-item"><span class="dot dot-night"></span><b data-i18n="leg_night">Night</b><span data-i18n="leg_d_night">every hour 150%</span></div>
+      <div class="legend-item"><span class="dot dot-friday"></span><b data-i18n="leg_friday">Friday</b><span data-i18n="leg_d_friday">completes 42h/week 100% · +2h 125% · then 150%</span></div>
+      <div class="legend-item"><span class="dot dot-vac"></span><b data-i18n="leg_vacation">Vacation</b><span data-i18n="leg_d_vacation">8.6h × wage @ 100%</span></div>
+      <div class="legend-foot" data-i18n="leg_foot">⏸ Unpaid break removed from the lowest-rate hours: 45 min/day · 15 min on Friday.</div>
+    </section>
+
+    <button id="fab-today" class="fab" aria-label="Add a shift for today" data-i18n="fab_today">＋ Today</button>
+  </main>
+
+  <!-- ============ SHIFT EDITOR (bottom sheet) ============ -->
+  <div id="sheet-backdrop" class="backdrop" hidden></div>
+  <section id="sheet" class="sheet" hidden aria-modal="true" role="dialog">
+    <div class="sheet-handle"></div>
+    <header class="sheet-head">
+      <h2 id="sheet-date">Shift</h2>
+      <button id="sheet-close" class="icon-btn" aria-label="Close">✕</button>
+    </header>
+
+    <div class="sheet-body">
+      <!-- Day mode: worked shift vs paid vacation -->
+      <div class="seg" id="mode-seg" role="group" aria-label="Day type">
+        <button class="seg-btn" data-mode="work" aria-pressed="true" data-i18n="mode_work">💼 Work shift</button>
+        <button class="seg-btn" data-mode="vacation" aria-pressed="false" data-i18n="mode_vacation">🏖️ Vacation</button>
+      </div>
+
+      <!-- WORK fields -->
+      <div id="work-fields">
+        <p id="friday-note" class="info-note" hidden data-i18n-html="friday_note">🕯️ <b>Friday</b> — paid by the weekly 42 h rule.</p>
+
+        <div class="seg" id="type-seg" role="group" aria-label="Shift type">
+          <button class="seg-btn" data-type="auto" aria-pressed="false" title="Detect the shift type from the start time" data-i18n="type_auto">Auto</button>
+          <button class="seg-btn" data-type="morning" aria-pressed="false" data-i18n="type_morning">☀️ Morning</button>
+          <button class="seg-btn" data-type="evening" aria-pressed="false" data-i18n="type_evening">🌆 Evening</button>
+          <button class="seg-btn" data-type="night" aria-pressed="false" data-i18n="type_night">🌙 Night</button>
+        </div>
+
+        <div class="time-row">
+          <label class="field">
+            <span class="field-label" data-i18n="f_start">Start</span>
+            <input id="in-start" type="time" value="07:00" step="60" aria-label="Shift start time" />
+          </label>
+          <label class="field">
+            <span class="field-label" data-i18n="f_end">End</span>
+            <input id="in-end" type="time" value="16:00" step="60" aria-label="Shift end time" />
+          </label>
+        </div>
+        <p class="time-tip" data-i18n="time_tip">Tap a field to pick the time. End before start = ends next day.</p>
+        <p id="crosses-midnight" class="midnight-note" hidden data-i18n="midnight">Ends next day (crosses midnight) 🌓</p>
+      </div>
+
+      <!-- VACATION info -->
+      <p id="vacation-note" class="info-note" hidden data-i18n-html="vacation_note">🏖️ <b>Paid vacation</b> — pays 8.6 h × your hourly wage at 100%.</p>
+
+      <label class="field">
+        <span class="field-label"><span data-i18n="note">Note</span> <span class="opt" data-i18n="note_opt">(optional)</span></span>
+        <input id="in-note" type="text" placeholder="e.g. covered for Sam" data-i18n-ph="note_ph" maxlength="60" />
+      </label>
+
+      <!-- Live preview -->
+      <div id="preview" class="preview">
+        <div class="preview-top">
+          <span id="prev-type" class="prev-type">Morning</span>
+          <span id="prev-pay" class="prev-pay">₪0.00</span>
+        </div>
+        <div id="prev-bars" class="prev-bars"></div>
+        <div id="prev-rows" class="prev-rows"></div>
+      </div>
+
+      <div class="sheet-actions">
+        <button id="btn-delete" class="btn-ghost-danger" hidden data-i18n="btn_delete">Delete</button>
+        <button id="btn-save" class="btn-primary btn-grow" data-i18n="btn_save">Save</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SETTINGS (bottom sheet) ============ -->
+  <div id="set-backdrop" class="backdrop" hidden></div>
+  <section id="settings" class="sheet" hidden aria-modal="true" role="dialog">
+    <div class="sheet-handle"></div>
+    <header class="sheet-head">
+      <h2 data-i18n="set_title">Settings</h2>
+      <button id="set-close" class="icon-btn" aria-label="Close">✕</button>
+    </header>
+    <div class="sheet-body">
+      <label class="field">
+        <span class="field-label" data-i18n="set_name">Name</span>
+        <input id="set-name" type="text" maxlength="40" />
+      </label>
+      <label class="field">
+        <span class="field-label" data-i18n="set_wage">Hourly wage</span>
+        <div class="rate-row">
+          <input id="set-currency" class="cur-input" type="text" maxlength="3" />
+          <input id="set-rate" type="number" inputmode="decimal" min="0" step="0.01" />
+          <span class="rate-suffix">/hr</span>
+        </div>
+        <span class="field-hint" data-i18n="set_wage_hint">Changing your wage affects only new shifts — past days keep the wage they were saved with.</span>
+      </label>
+
+      <div class="field">
+        <span class="field-label" data-i18n="set_lang">Language</span>
+        <div id="lang-seg" class="lang-grid lang-grid-sm"></div>
+      </div>
+
+      <div class="field">
+        <span class="field-label" data-i18n="set_appear">Appearance</span>
+        <div class="seg" id="theme-seg" role="group" aria-label="Theme">
+          <button class="seg-btn" data-theme="system" aria-pressed="false" data-i18n="th_auto">Auto</button>
+          <button class="seg-btn" data-theme="light" aria-pressed="false" data-i18n="th_light">☀️ Light</button>
+          <button class="seg-btn" data-theme="dark" aria-pressed="false" data-i18n="th_dark">🌙 Dark</button>
+        </div>
+      </div>
+
+      <button id="set-save" class="btn-primary btn-block" data-i18n="set_save">Save changes</button>
+
+      <div class="danger-zone">
+        <button id="btn-export-csv" class="btn-ghost" data-i18n="exp_csv">⤓ Export this month (CSV)</button>
+        <button id="btn-export" class="btn-ghost" data-i18n="exp_json">⤓ Export my data (JSON)</button>
+        <button id="btn-clear" class="btn-ghost-danger btn-block" data-i18n="erase">Erase all data</button>
+      </div>
+      <p class="version" data-i18n="version">ShiftPay · works offline · data stays on this device</p>
+    </div>
+  </section>
+
+  <!-- toast -->
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="calc.js"></script>
+  <script src="i18n.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Get ShiftPay</title>
+<link rel="icon" href="icons/icon-192.png" />
+<style>
+  :root{--brand:#6366f1;--brand2:#8b5cf6;--money:#10b981;--bg:#0e0f17;--card:#1b1d2b;--text:#f3f4fb;--dim:#a4a9bd;--border:#2a2d40}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);min-height:100dvh;display:flex;flex-direction:column;align-items:center;padding:28px 18px calc(env(safe-area-inset-bottom,0) + 28px)}
+  .wrap{width:100%;max-width:460px}
+  .hero{text-align:center;margin-bottom:22px}
+  .logo{width:78px;height:78px;margin:0 auto 12px;display:grid;place-items:center;font-size:40px;background:linear-gradient(135deg,#6366f1,#8b5cf6,#a855f7);border-radius:22px;box-shadow:0 16px 36px -12px rgba(124,58,237,.6)}
+  h1{margin:0;font-size:28px;letter-spacing:-.5px}
+  .sub{color:var(--dim);margin:6px 0 0;font-size:15px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:20px;margin-bottom:14px}
+  .card.dim{opacity:.6}
+  .card h2{margin:0 0 4px;font-size:18px;display:flex;align-items:center;gap:9px}
+  .card .for{font-size:12.5px;color:var(--dim);margin-bottom:14px}
+  .btn{display:block;text-align:center;text-decoration:none;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;font-weight:800;font-size:16px;padding:15px;border-radius:14px;box-shadow:0 8px 20px -8px rgba(99,102,241,.7)}
+  .btn.alt{background:transparent;border:1.5px solid var(--border);color:var(--text);box-shadow:none}
+  .btn:active{transform:scale(.98)}
+  ol{margin:14px 0 0;padding-inline-start:20px;color:var(--dim);font-size:13.5px;line-height:1.7}
+  ol b{color:var(--text)}
+  .badge{display:inline-block;font-size:11px;font-weight:700;color:#fff;background:var(--money);padding:3px 9px;border-radius:999px;margin-inline-start:8px;vertical-align:middle}
+  .foot{text-align:center;color:var(--dim);font-size:12px;margin-top:8px;line-height:1.6}
+  .foot a{color:var(--brand2)}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="hero">
+      <div class="logo">💸</div>
+      <h1>ShiftPay</h1>
+      <p class="sub">Track your shifts &amp; know your pay — installable, works offline.</p>
+    </div>
+
+    <!-- ANDROID -->
+    <div class="card" id="card-android">
+      <h2>🤖 Android <span class="badge" id="badge-a" hidden>Your phone</span></h2>
+      <div class="for">Install the app (APK)</div>
+      <a class="btn" href="ShiftPay.apk" download>⬇ Download ShiftPay (APK)</a>
+      <ol>
+        <li>Tap <b>Download anyway / Keep</b> if the browser warns about the file.</li>
+        <li>Open the downloaded file → if asked, <b>allow installs from this source</b>.</li>
+        <li>If Play Protect blocks it: <b>More details → Install anyway</b> (it's your own app).</li>
+      </ol>
+    </div>
+
+    <!-- IPHONE -->
+    <div class="card" id="card-ios">
+      <h2>🍎 iPhone / iPad <span class="badge" id="badge-i" hidden>Your phone</span></h2>
+      <div class="for">Add to Home Screen (no App Store needed)</div>
+      <a class="btn alt" href="./" id="open-app">Open the app in Safari →</a>
+      <ol>
+        <li>Open <b>this page in Safari</b> (not Chrome), then tap <b>Open the app</b> above.</li>
+        <li>Tap the <b>Share</b> button (□↑ at the bottom).</li>
+        <li>Scroll down → <b>Add to Home Screen</b> → <b>Add</b>.</li>
+        <li>Launch <b>ShiftPay</b> from your home screen — full‑screen &amp; offline.</li>
+      </ol>
+    </div>
+
+    <p class="foot">
+      Or just <a href="./">open the web app</a> in any browser.<br/>
+      Free · works offline · your data stays on your device.
+    </p>
+  </div>
+
+  <script>
+    (function(){
+      var ua = navigator.userAgent || "";
+      var isIOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
+      var isAndroid = /Android/i.test(ua);
+      if (isAndroid) { document.getElementById('badge-a').hidden=false; document.getElementById('card-ios').classList.add('dim'); }
+      else if (isIOS) { document.getElementById('badge-i').hidden=false; document.getElementById('card-android').classList.add('dim'); }
+    })();
+  </script>
+</body>
+</html>
