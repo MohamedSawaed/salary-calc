@@ -11,7 +11,7 @@
   /* ---------------- state ---------------- */
   var state = {
     profile: { name: '', rate: 0, currency: '₪' },
-    prefs: { theme: 'system', lang: null }, // lang null -> show language picker first
+    prefs: { theme: 'system', lang: null, view: 'list' }, // lang null -> show language picker first; view: 'list' | 'calendar'
     shifts: {} // 'yyyy-mm-dd' -> { start, end, type, note }
   };
 
@@ -131,7 +131,7 @@
     document.querySelectorAll('[data-i18n-ph]').forEach(function (el) { el.setAttribute('placeholder', t(el.getAttribute('data-i18n-ph'))); });
     document.querySelectorAll('[data-i18n-html]').forEach(function (el) { el.innerHTML = t(el.getAttribute('data-i18n-html')); });
     renderLangPickers();
-    if (!$('app').hidden) { updateGreeting(); renderWeekdays(); renderCalendar(); }
+    if (!$('app').hidden) { updateGreeting(); renderWeekdays(); renderView(); }
   }
 
   function updateGreeting() {
@@ -178,7 +178,7 @@
     var now = new Date();
     view.y = now.getFullYear(); view.m = now.getMonth();
     renderWeekdays();
-    renderCalendar();
+    renderView();
   }
   function showOnboarding() {
     $('lang-screen').hidden = true;
@@ -303,6 +303,87 @@
     $('month-hours').textContent = fmtHours(monthHours).replace(' ', '');
     $('month-shifts').textContent = monthShifts;
     $('empty-hint').hidden = monthShifts !== 0;
+  }
+
+  /* ---------------- list / table view (timesheet style) ---------------- */
+  function renderTable() {
+    var tbl = $('month-table');
+    tbl.innerHTML = '';
+
+    var head = document.createElement('div');
+    head.className = 'mt-row mt-head';
+    head.innerHTML =
+      '<span class="mt-date">' + t('col_date') + '</span>' +
+      '<span class="mt-cell">' + t('col_in') + '</span>' +
+      '<span class="mt-cell">' + t('col_out') + '</span>' +
+      '<span class="mt-pay">' + t('col_pay') + '</span>';
+    tbl.appendChild(head);
+
+    var daysInMonth = new Date(view.y, view.m + 1, 0).getDate();
+    var tKey = todayKey();
+    var monthPay = 0, monthHours = 0, monthShifts = 0;
+
+    for (var d = 1; d <= daysInMonth; d++) {
+      var k = keyOf(view.y, view.m, d);
+      var dow = new Date(view.y, view.m, d).getDay();
+      var row = document.createElement('button');
+      row.className = 'mt-row';
+      row.setAttribute('data-key', k);
+      if (k === tKey) row.classList.add('mt-today');
+      if (dow === 5) row.classList.add('mt-fri');
+      if (dow === 6) row.classList.add('mt-sat');
+
+      var shift = state.shifts[k];
+      var inHtml = '<span class="muted">—</span>';
+      var outHtml = '<span class="muted">—</span>';
+      var payHtml = '<span class="muted">—</span>';
+      if (shift) {
+        var res = dayResult(k);
+        var meta = SalaryCalc.SHIFT_META[res.type] || SalaryCalc.SHIFT_META.morning;
+        if (shift.type === 'vacation') {
+          inHtml = '<i class="t-pill vac">' + meta.emoji + '</i>';
+        } else {
+          inHtml = '<i class="t-pill in">' + shift.start + '</i>';
+          outHtml = '<i class="t-pill out">' + shift.end + '</i>';
+        }
+        payHtml = '<b class="pay-num">' + fmtMoney(res.pay, true) + '</b>';
+        monthPay += res.pay; monthHours += res.totalHours; monthShifts++;
+      }
+      row.innerHTML =
+        '<span class="mt-date"><b>' + d + '</b><small>' + localeWeekdayShort(dow) + '</small></span>' +
+        '<span class="mt-cell">' + inHtml + '</span>' +
+        '<span class="mt-cell">' + outHtml + '</span>' +
+        '<span class="mt-pay">' + payHtml + '</span>';
+      row.addEventListener('click', function () { openSheet(this.getAttribute('data-key')); });
+      tbl.appendChild(row);
+    }
+
+    var tot = document.createElement('div');
+    tot.className = 'mt-row mt-total';
+    tot.innerHTML =
+      '<span class="mt-date">' + t('tbl_total') + '</span>' +
+      '<span class="mt-cell"></span><span class="mt-cell"></span>' +
+      '<span class="mt-pay"><b>' + fmtMoney(monthPay) + '</b></span>';
+    tbl.appendChild(tot);
+
+    $('month-total').textContent = fmtMoney(monthPay);
+    $('month-hours').textContent = fmtHours(monthHours).replace(' ', '');
+    $('month-shifts').textContent = monthShifts;
+    $('empty-hint').hidden = true;
+  }
+
+  // dispatcher: render whichever view is selected, keep the toggle in sync
+  function renderView() {
+    $('month-label').textContent = localeMonthYear(view.y, view.m);
+    var list = state.prefs.view === 'list';
+    if ($('calendar-view')) $('calendar-view').hidden = list;
+    if ($('table-view')) $('table-view').hidden = !list;
+    document.querySelectorAll('#view-seg .seg-btn').forEach(function (b) {
+      var on = b.getAttribute('data-view') === (list ? 'list' : 'calendar');
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+    if (list) renderTable(); else renderCalendar();
   }
 
   /* ---------------- shift editor sheet ---------------- */
@@ -509,7 +590,7 @@
       };
     }
     save();
-    renderCalendar();
+    renderView();
     closeSheetEl('sheet', 'sheet-backdrop');
     toast(t('t_saved', { x: fmtMoney(dayResult(editKey).pay) }));
   }
@@ -518,7 +599,7 @@
     if (editKey && state.shifts[editKey]) {
       delete state.shifts[editKey];
       save();
-      renderCalendar();
+      renderView();
     }
     closeSheetEl('sheet', 'sheet-backdrop');
     toast(t('t_removed'));
@@ -559,7 +640,7 @@
     state.profile.currency = cur;
     save();
     updateGreeting();
-    renderCalendar();
+    renderView();
     closeSheetEl('settings', 'set-backdrop');
     toast(t('t_settings'));
   }
@@ -678,18 +759,24 @@
     $('onb-form').addEventListener('submit', submitOnboarding);
 
     $('prev-month').addEventListener('click', function () {
-      view.m--; if (view.m < 0) { view.m = 11; view.y--; } renderCalendar();
+      view.m--; if (view.m < 0) { view.m = 11; view.y--; } renderView();
     });
     $('next-month').addEventListener('click', function () {
-      view.m++; if (view.m > 11) { view.m = 0; view.y++; } renderCalendar();
+      view.m++; if (view.m > 11) { view.m = 0; view.y++; } renderView();
     });
     $('month-label').addEventListener('click', function () {
-      var now = new Date(); view.y = now.getFullYear(); view.m = now.getMonth(); renderCalendar();
+      var now = new Date(); view.y = now.getFullYear(); view.m = now.getMonth(); renderView();
     });
 
     $('fab-today').addEventListener('click', function () {
       var now = new Date(); view.y = now.getFullYear(); view.m = now.getMonth();
-      renderCalendar(); openSheet(todayKey());
+      renderView(); openSheet(todayKey());
+    });
+
+    document.querySelectorAll('#view-seg .seg-btn').forEach(function (b) {
+      b.addEventListener('click', function () {
+        state.prefs.view = b.getAttribute('data-view'); save(); renderView();
+      });
     });
 
     // sheet

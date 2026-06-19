@@ -285,6 +285,43 @@ input[type="time"] { min-height: 50px; }
 .empty-hint b { color: var(--brand-2); }
 .time-tip { margin: -6px 0 0; font-size: 12px; color: var(--text-faint); }
 
+/* ============ LIST / TABLE VIEW ============ */
+.view-seg { margin-bottom: 12px; }
+.month-table { background: var(--card); border: 1px solid var(--border); border-radius: var(--r-md); overflow: hidden; }
+.mt-row {
+  display: grid; grid-template-columns: 1.15fr 1fr 1fr 1.15fr; align-items: center; gap: 4px;
+  width: 100%; text-align: center; padding: 9px 8px;
+  border: none; border-bottom: 1px solid var(--border);
+  background: transparent; color: var(--text); font-size: 13.5px; cursor: pointer;
+  transition: background .12s;
+}
+.mt-row:last-child { border-bottom: none; }
+button.mt-row:active { background: color-mix(in srgb, var(--brand) 8%, transparent); }
+.mt-head {
+  background: var(--bg); color: var(--text-dim);
+  font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .3px; cursor: default;
+}
+.mt-date { display: flex; flex-direction: column; line-height: 1.1; }
+.mt-date b { font-size: 15px; }
+.mt-date small { font-size: 10.5px; color: var(--text-dim); margin-top: 1px; }
+.t-pill {
+  display: inline-block; font-style: normal; font-weight: 700; font-variant-numeric: tabular-nums;
+  font-size: 13px; padding: 4px 8px; border-radius: 8px; min-width: 48px;
+}
+.t-pill.in  { background: color-mix(in srgb, #38bdf8 22%, transparent); }
+.t-pill.out { background: color-mix(in srgb, #f59e0b 24%, transparent); }
+.t-pill.vac { background: color-mix(in srgb, var(--money) 22%, transparent); }
+.mt-pay .pay-num { color: var(--money); font-weight: 800; font-variant-numeric: tabular-nums; }
+.mt-row .muted { color: var(--text-faint); }
+.mt-today { background: color-mix(in srgb, var(--brand) 11%, transparent); }
+.mt-today .mt-date b { color: var(--brand); }
+.mt-fri { background: color-mix(in srgb, #3b82f6 10%, transparent); }
+.mt-fri .mt-date small { color: #3b82f6; font-weight: 800; }
+.mt-sat { background: color-mix(in srgb, var(--money) 9%, transparent); }
+.mt-sat .mt-date small { color: var(--money); font-weight: 800; }
+.mt-total { font-weight: 800; background: var(--bg-elev); border-top: 2px solid var(--border-strong); cursor: default; }
+.mt-total .mt-pay b { color: var(--money); font-size: 15px; }
+
 /* ============ LEGEND ============ */
 .legend {
   margin: 10px 14px 0; padding: 14px;

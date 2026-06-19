@@ -92,10 +92,22 @@
       </div>
     </header>
 
-    <!-- Calendar -->
+    <!-- Calendar / List -->
     <section class="cal-wrap">
-      <div class="weekdays" id="weekdays"></div>
-      <div id="calendar" class="calendar"></div>
+      <div class="seg view-seg" id="view-seg" role="group" aria-label="View">
+        <button class="seg-btn" data-view="list" aria-pressed="true" data-i18n="view_list">📋 List</button>
+        <button class="seg-btn" data-view="calendar" aria-pressed="false" data-i18n="view_calendar">📅 Calendar</button>
+      </div>
+
+      <div id="calendar-view" hidden>
+        <div class="weekdays" id="weekdays"></div>
+        <div id="calendar" class="calendar"></div>
+      </div>
+
+      <div id="table-view">
+        <div id="month-table" class="month-table"></div>
+      </div>
+
       <p id="empty-hint" class="empty-hint" hidden data-i18n-html="empty_hint">No shifts this month yet.<br/>Tap <b>any day</b> above — or <b>＋ Today</b> — to log your first shift.</p>
       <p class="cal-tip" data-i18n="cal_tip">💡 Tap any day to add or edit a shift.</p>
     </section>
