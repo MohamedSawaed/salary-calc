@@ -20,7 +20,7 @@
 
   var view = { y: 0, m: 0 };          // currently displayed month
   var editKey = null;                 // date being edited in the sheet
-  var editType = 'auto';              // selected shift type in the sheet
+  var editType = 'morning';           // selected shift type in the sheet (concrete; no 'auto')
   var editMode = 'work';              // 'work' | 'vacation'
   var editRate = 0;                   // wage applied to the day being edited
   var deferredInstall = null;         // PWA install prompt
@@ -433,11 +433,13 @@
     if (existing && !isVac) {
       $('in-start').value = existing.start;
       $('in-end').value = existing.end;
-      setTypeSeg(existing.type || 'auto', true);
+      var et = existing.type;
+      if (!et || et === 'auto') et = SalaryCalc.detectShiftType(existing.start); // legacy 'auto' -> concrete
+      setTypeSeg(et, true);
     } else {
       $('in-start').value = '07:00';
       $('in-end').value = isFridayKey(key) ? '13:00' : '16:00';
-      setTypeSeg('auto', true);
+      setTypeSeg(SalaryCalc.detectShiftType('07:00'), true); // sensible default, user can change
     }
     $('in-note').value = existing ? (existing.note || '') : '';
     $('btn-delete').hidden = !existing;
@@ -508,7 +510,6 @@
 
     var typeTxt = meta.emoji + ' ' + t('leg_' + res.type);
     if (fri) typeTxt += t('sfx_weekly');
-    else if (editType === 'auto') typeTxt += t('sfx_auto');
     $('prev-type').textContent = typeTxt;
     $('prev-pay').textContent = fmtMoney(res.pay);
 

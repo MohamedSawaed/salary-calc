@@ -82,12 +82,16 @@
     return { startMin: startMin, endMin: endMin, durationMin: endMin - startMin };
   }
 
+  var EVENING_REGULAR_UNTIL_MIN = 15 * 60 + 30; // 15:30 — before this, evening hours are 100%
+  var EVENING_OT_UNTIL_MIN = 23 * 60;           // 23:00 — 125% up to here, 150% after
+
   /**
    * The pay multiplier (as a percent) for a single worked minute.
    * @param absMin            absolute minute of this slot (startMin + i, not wrapped)
    * @param eveningSplitAbs   absolute minute of the evening 125%->150% boundary (23:00)
+   * @param eveningCutoffAbs  absolute minute of the evening 100%->125% boundary (15:30)
    */
-  function percentForMinute(type, elapsedMin, clockMin, absMin, eveningSplitAbs) {
+  function percentForMinute(type, elapsedMin, clockMin, absMin, eveningSplitAbs, eveningCutoffAbs) {
     if (type === 'night') return 150;
 
     if (type === 'morning') {
@@ -97,14 +101,21 @@
       return 150;               // beyond 11 hours
     }
 
-    // evening - 125% until the shift reaches 23:00, then 150% (incl. past midnight).
-    return absMin < eveningSplitAbs ? 125 : 150;
+    // evening - early hours (before 15:30) are 100%, then 125% until 23:00, then 150%.
+    if (absMin < eveningCutoffAbs) return 100;
+    if (absMin < eveningSplitAbs) return 125;
+    return 150;
   }
 
   /** Absolute minute of the first 23:00 at or after the shift start. */
   function eveningSplitFor(startMin) {
-    var k = 23 * 60;
+    var k = EVENING_OT_UNTIL_MIN;
     return startMin <= k ? k : k + MINUTES_PER_DAY;
+  }
+  /** Absolute minute where evening 100% ends (15:30). If the shift starts at/after
+      15:30 there is no 100% portion, so the cutoff is the start itself. */
+  function eveningCutoffFor(startMin) {
+    return startMin < EVENING_REGULAR_UNTIL_MIN ? EVENING_REGULAR_UNTIL_MIN : startMin;
   }
 
   function round2(n) {
@@ -122,11 +133,12 @@
     var type = (typeOpt && typeOpt !== 'auto') ? typeOpt : detectShiftType(startStr);
     var bounds = shiftBounds(startStr, endStr);
     var eveningSplit = eveningSplitFor(bounds.startMin);
+    var eveningCutoff = eveningCutoffFor(bounds.startMin);
     var mins = emptyMins();
     for (var i = 0; i < bounds.durationMin; i++) {
       var absMin = bounds.startMin + i;
       var clock = absMin % MINUTES_PER_DAY;
-      var p = percentForMinute(type, i, clock, absMin, eveningSplit);
+      var p = percentForMinute(type, i, clock, absMin, eveningSplit, eveningCutoff);
       mins[p] += 1;
     }
     return { type: type, mins: mins, durationMin: bounds.durationMin, startMin: bounds.startMin };
@@ -261,6 +273,7 @@
     detectShiftType: detectShiftType,
     shiftBounds: shiftBounds,
     eveningSplitFor: eveningSplitFor,
+    eveningCutoffFor: eveningCutoffFor,
     percentForMinute: percentForMinute,
     tierShift: tierShift,
     tierFriday: tierFriday,
