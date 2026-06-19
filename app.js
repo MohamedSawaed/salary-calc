@@ -21,6 +21,7 @@
   var view = { y: 0, m: 0 };          // currently displayed month
   var editKey = null;                 // date being edited in the sheet
   var editType = 'morning';           // selected shift type in the sheet (concrete; no 'auto')
+  var typeAuto = true;                 // type follows the start time until the user picks one
   var editMode = 'work';              // 'work' | 'vacation'
   var editRate = 0;                   // wage applied to the day being edited
   var deferredInstall = null;         // PWA install prompt
@@ -387,13 +388,16 @@
   }
 
   /* ---------------- shift editor sheet ---------------- */
-  function setTypeSeg(type, skip) {
-    editType = type;
+  function syncTypeSeg() {
     document.querySelectorAll('#type-seg .seg-btn').forEach(function (b) {
-      var on = b.getAttribute('data-type') === type;
+      var on = b.getAttribute('data-type') === editType;
       b.classList.toggle('active', on);
       b.setAttribute('aria-pressed', on ? 'true' : 'false');
     });
+  }
+  function setTypeSeg(type, skip) {
+    editType = type;
+    syncTypeSeg();
     if (!skip) renderPreview();
   }
 
@@ -435,11 +439,13 @@
       $('in-end').value = existing.end;
       var et = existing.type;
       if (!et || et === 'auto') et = SalaryCalc.detectShiftType(existing.start); // legacy 'auto' -> concrete
+      typeAuto = false;                 // keep the saved type when editing
       setTypeSeg(et, true);
     } else {
       $('in-start').value = '07:00';
       $('in-end').value = isFridayKey(key) ? '13:00' : '16:00';
-      setTypeSeg(SalaryCalc.detectShiftType('07:00'), true); // sensible default, user can change
+      typeAuto = true;                  // new shift: type follows the start time
+      setTypeSeg(SalaryCalc.detectShiftType('07:00'), true);
     }
     $('in-note').value = existing ? (existing.note || '') : '';
     $('btn-delete').hidden = !existing;
@@ -490,6 +496,11 @@
 
     // ----- worked shift -----
     var inp = currentInputs();
+    // while not manually chosen, the type follows the start time (16:00->evening, 19:00->night)
+    if (typeAuto && !isFridayKey(editKey)) {
+      var det = SalaryCalc.detectShiftType(inp.start);
+      if (det !== editType) { editType = det; syncTypeSeg(); }
+    }
     var sm = SalaryCalc.parseTimeToMinutes(inp.start);
     var em = SalaryCalc.parseTimeToMinutes(inp.end);
     $('crosses-midnight').hidden = !(em <= sm && inp.start !== inp.end);
@@ -788,7 +799,7 @@
     $('btn-save').addEventListener('click', saveShift);
     $('btn-delete').addEventListener('click', deleteShift);
     document.querySelectorAll('#type-seg .seg-btn').forEach(function (b) {
-      b.addEventListener('click', function () { setTypeSeg(b.getAttribute('data-type')); });
+      b.addEventListener('click', function () { typeAuto = false; setTypeSeg(b.getAttribute('data-type')); });
     });
     document.querySelectorAll('#mode-seg .seg-btn').forEach(function (b) {
       b.addEventListener('click', function () { setMode(b.getAttribute('data-mode')); applyFridayUi(editKey); });
