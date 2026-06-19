@@ -98,7 +98,7 @@
     var dark = pref === 'dark' || (pref === 'system' && mql && mql.matches);
     document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
     var meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute('content', dark ? '#4f46e5' : '#6366f1');
+    if (meta) meta.setAttribute('content', dark ? '#0b0b0e' : '#f6f6f4');
   }
   if (mql && mql.addEventListener) mql.addEventListener('change', function () { if (state.prefs.theme === 'system') applyTheme(); });
 
