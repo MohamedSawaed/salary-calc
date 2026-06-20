@@ -20,7 +20,7 @@
   <!-- ============ LANGUAGE SELECT (first run) ============ -->
   <section id="lang-screen" class="screen lang-screen" hidden>
     <div class="lang-hero">
-      <div class="onb-logo">💸</div>
+      <div class="onb-logo"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 1.8"/></svg></div>
       <h1>ShiftPay</h1>
       <p class="lang-title">Language · שפה · اللغة · Язык</p>
     </div>
@@ -30,7 +30,7 @@
   <!-- ============ ONBOARDING ============ -->
   <section id="onboarding" class="screen onboarding" hidden>
     <div class="onb-hero">
-      <div class="onb-logo">💸</div>
+      <div class="onb-logo"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 1.8"/></svg></div>
       <h1>ShiftPay</h1>
       <p class="onb-sub" data-i18n="onb_tagline">Track your shifts. Know your pay — to the minute.</p>
     </div>
@@ -71,7 +71,7 @@
         <div class="greet">
           <span class="greet-hi" id="greet-hi">Hi, there 👋</span>
         </div>
-        <button id="btn-settings" class="icon-btn" aria-label="Settings">⚙️</button>
+        <button id="btn-settings" class="icon-btn" aria-label="Settings"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
       </div>
 
       <div class="month-nav">
@@ -95,8 +95,8 @@
     <!-- Calendar / List -->
     <section class="cal-wrap">
       <div class="seg view-seg" id="view-seg" role="group" aria-label="View">
-        <button class="seg-btn" data-view="list" aria-pressed="true" data-i18n="view_list">📋 List</button>
-        <button class="seg-btn" data-view="calendar" aria-pressed="false" data-i18n="view_calendar">📅 Calendar</button>
+        <button class="seg-btn" data-view="list" aria-pressed="true" data-i18n="view_list">List</button>
+        <button class="seg-btn" data-view="calendar" aria-pressed="false" data-i18n="view_calendar">Calendar</button>
       </div>
 
       <div id="calendar-view" hidden>
@@ -109,7 +109,7 @@
       </div>
 
       <p id="empty-hint" class="empty-hint" hidden data-i18n-html="empty_hint">No shifts this month yet.<br/>Tap <b>any day</b> above — or <b>＋ Today</b> — to log your first shift.</p>
-      <p class="cal-tip" data-i18n="cal_tip">💡 Tap any day to add or edit a shift.</p>
+      <p class="cal-tip" data-i18n="cal_tip">Tap any day to add or edit a shift.</p>
     </section>
 
     <!-- Rate legend -->
@@ -119,7 +119,7 @@
       <div class="legend-item"><span class="dot dot-night"></span><b data-i18n="leg_night">Night</b><span data-i18n="leg_d_night">every hour 150%</span></div>
       <div class="legend-item"><span class="dot dot-friday"></span><b data-i18n="leg_friday">Friday</b><span data-i18n="leg_d_friday">completes 42h/week 100% · +2h 125% · then 150%</span></div>
       <div class="legend-item"><span class="dot dot-vac"></span><b data-i18n="leg_vacation">Vacation</b><span data-i18n="leg_d_vacation">8.6h × wage @ 100%</span></div>
-      <div class="legend-foot" data-i18n="leg_foot">⏸ Unpaid break removed from the lowest-rate hours: 45 min/day · 15 min on Friday.</div>
+      <div class="legend-foot" data-i18n="leg_foot">Unpaid break removed from the lowest-rate hours: 45 min/day · 15 min on Friday.</div>
     </section>
 
     <button id="fab-today" class="fab" aria-label="Add a shift for today" data-i18n="fab_today">＋ Today</button>
@@ -137,18 +137,18 @@
     <div class="sheet-body">
       <!-- Day mode: worked shift vs paid vacation -->
       <div class="seg" id="mode-seg" role="group" aria-label="Day type">
-        <button class="seg-btn" data-mode="work" aria-pressed="true" data-i18n="mode_work">💼 Work shift</button>
-        <button class="seg-btn" data-mode="vacation" aria-pressed="false" data-i18n="mode_vacation">🏖️ Vacation</button>
+        <button class="seg-btn" data-mode="work" aria-pressed="true" data-i18n="mode_work">Work shift</button>
+        <button class="seg-btn" data-mode="vacation" aria-pressed="false" data-i18n="mode_vacation">Vacation</button>
       </div>
 
       <!-- WORK fields -->
       <div id="work-fields">
-        <p id="friday-note" class="info-note" hidden data-i18n-html="friday_note">🕯️ <b>Friday</b> — paid by the weekly 42 h rule.</p>
+        <p id="friday-note" class="info-note" hidden data-i18n-html="friday_note"><b>Friday</b> — paid by the weekly 42 h rule.</p>
 
         <div class="seg" id="type-seg" role="group" aria-label="Shift type">
-          <button class="seg-btn" data-type="morning" aria-pressed="false" data-i18n="type_morning">☀️ Morning</button>
-          <button class="seg-btn" data-type="evening" aria-pressed="false" data-i18n="type_evening">🌆 Evening</button>
-          <button class="seg-btn" data-type="night" aria-pressed="false" data-i18n="type_night">🌙 Night</button>
+          <button class="seg-btn" data-type="morning" aria-pressed="false"><span class="dot dot-morning"></span><span data-i18n="type_morning">Morning</span></button>
+          <button class="seg-btn" data-type="evening" aria-pressed="false"><span class="dot dot-evening"></span><span data-i18n="type_evening">Evening</span></button>
+          <button class="seg-btn" data-type="night" aria-pressed="false"><span class="dot dot-night"></span><span data-i18n="type_night">Night</span></button>
         </div>
 
         <div class="time-row">
@@ -166,7 +166,7 @@
       </div>
 
       <!-- VACATION info -->
-      <p id="vacation-note" class="info-note" hidden data-i18n-html="vacation_note">🏖️ <b>Paid vacation</b> — pays 8.6 h × your hourly wage at 100%.</p>
+      <p id="vacation-note" class="info-note" hidden data-i18n-html="vacation_note"><b>Paid vacation</b> — pays 8.6 h × your hourly wage at 100%.</p>
 
       <label class="field">
         <span class="field-label"><span data-i18n="note">Note</span> <span class="opt" data-i18n="note_opt">(optional)</span></span>
@@ -222,8 +222,8 @@
         <span class="field-label" data-i18n="set_appear">Appearance</span>
         <div class="seg" id="theme-seg" role="group" aria-label="Theme">
           <button class="seg-btn" data-theme="system" aria-pressed="false" data-i18n="th_auto">Auto</button>
-          <button class="seg-btn" data-theme="light" aria-pressed="false" data-i18n="th_light">☀️ Light</button>
-          <button class="seg-btn" data-theme="dark" aria-pressed="false" data-i18n="th_dark">🌙 Dark</button>
+          <button class="seg-btn" data-theme="light" aria-pressed="false" data-i18n="th_light">Light</button>
+          <button class="seg-btn" data-theme="dark" aria-pressed="false" data-i18n="th_dark">Dark</button>
         </div>
       </div>
 

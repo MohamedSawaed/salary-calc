@@ -342,7 +342,7 @@
         var res = dayResult(k);
         var meta = SalaryCalc.SHIFT_META[res.type] || SalaryCalc.SHIFT_META.morning;
         if (shift.type === 'vacation') {
-          inHtml = '<i class="t-pill vac">' + meta.emoji + '</i>';
+          inHtml = '<span class="vac-label">' + t('leg_vacation') + '</span>';
         } else {
           inHtml = '<i class="t-pill in">' + shift.start + '</i>';
           outHtml = '<i class="t-pill out">' + shift.end + '</i>';
@@ -483,7 +483,7 @@
     // ----- vacation -----
     if (editMode === 'vacation') {
       var vr = SalaryCalc.vacationResult(rate);
-      $('prev-type').textContent = t('prev_vac');
+      $('prev-type').innerHTML = '<span class="dot dot-vac"></span>' + t('prev_vac');
       $('prev-pay').textContent = fmtMoney(vr.pay);
       bars.innerHTML = '<i class="seg-100" style="width:100%"></i>';
       rows.innerHTML =
@@ -519,9 +519,9 @@
     var res = dayResult(editKey, { start: inp.start, end: inp.end, type: editType, rate: editRate });
     var meta = SalaryCalc.SHIFT_META[res.type] || SalaryCalc.SHIFT_META.morning;
 
-    var typeTxt = meta.emoji + ' ' + t('leg_' + res.type);
+    var typeTxt = t('leg_' + res.type);
     if (fri) typeTxt += t('sfx_weekly');
-    $('prev-type').textContent = typeTxt;
+    $('prev-type').innerHTML = '<span class="dot" style="background:' + meta.accent + '"></span>' + typeTxt;
     $('prev-pay').textContent = fmtMoney(res.pay);
 
     // stacked bar (paid hours)
