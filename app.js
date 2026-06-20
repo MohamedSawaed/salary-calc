@@ -147,7 +147,7 @@
       b.className = 'lang-btn' + (state.prefs.lang === L.code ? ' active' : '');
       b.setAttribute('data-lang', L.code);
       b.setAttribute('aria-pressed', state.prefs.lang === L.code ? 'true' : 'false');
-      b.innerHTML = '<span class="lang-flag">' + L.flag + '</span><span class="lang-name">' + L.native + '</span>';
+      b.innerHTML = '<span class="lang-name">' + L.native + '</span><span class="lang-code">' + L.code.toUpperCase() + '</span>';
       b.addEventListener('click', function () { onPick(L.code); });
       container.appendChild(b);
     });
