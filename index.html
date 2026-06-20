@@ -61,8 +61,6 @@
       <div class="rate-chip"><span class="dot dot-friday"></span><span data-i18n="chip_friday">Friday · 42h weekly</span></div>
       <div class="rate-chip"><span class="dot dot-vac"></span><span data-i18n="chip_vacation">Vacation · 8.6h</span></div>
     </div>
-
-    <button id="onb-signin" class="link-btn" data-i18n="onb_signin">Have an account? Sign in</button>
   </section>
 
   <!-- ============ MAIN APP ============ -->
@@ -260,19 +258,18 @@
     </div>
   </section>
 
-  <!-- ============ ACCOUNT / SIGN IN (bottom sheet) ============ -->
-  <div id="auth-backdrop" class="backdrop" hidden></div>
-  <section id="auth-sheet" class="sheet" hidden aria-modal="true" role="dialog">
-    <div class="sheet-handle"></div>
-    <header class="sheet-head">
-      <h2 id="auth-title" data-i18n="auth_do_in">Sign in</h2>
-      <button id="auth-close" class="icon-btn" aria-label="Close">✕</button>
-    </header>
-    <div class="sheet-body">
+  <!-- ============ SIGN IN (required gate screen) ============ -->
+  <section id="auth-screen" class="screen onboarding" hidden>
+    <div class="onb-hero">
+      <div class="onb-logo"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 1.8"/></svg></div>
+      <h1>ShiftPay</h1>
+      <p class="onb-sub" id="auth-title" data-i18n="auth_do_in">Sign in</p>
+    </div>
+    <div class="onb-card">
       <p class="field-hint" data-i18n="auth_sub">Your shifts are saved online and available on any device you sign in to.</p>
       <label class="field">
         <span class="field-label" data-i18n="auth_email">Email</span>
-        <input id="auth-email" type="email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" />
+        <input id="auth-email" type="email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" placeholder="you@example.com" />
       </label>
       <label class="field">
         <span class="field-label" data-i18n="auth_pass">Password</span>

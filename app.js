@@ -160,14 +160,15 @@
   }
   function pickLangFirstRun(code) {
     state.prefs.lang = code; save(); applyLang();
-    $('lang-screen').hidden = true;
-    if (state.profile.name && state.profile.rate) showApp(); else showOnboarding();
+    routeInitial();
   }
   function pickLangSettings(code) {
     state.prefs.lang = code; save(); applyLang();
   }
+  function hideAuthScreen() { var a = $('auth-screen'); if (a) a.hidden = true; }
+
   function showLangScreen() {
-    $('onboarding').hidden = true; $('app').hidden = true;
+    $('onboarding').hidden = true; $('app').hidden = true; hideAuthScreen();
     $('lang-screen').hidden = false;
     renderLangPickers();
   }
@@ -176,6 +177,7 @@
   function showApp() {
     $('lang-screen').hidden = true;
     $('onboarding').hidden = true;
+    hideAuthScreen();
     $('app').hidden = false;
     updateGreeting();
     var now = new Date();
@@ -186,6 +188,7 @@
   function showOnboarding() {
     $('lang-screen').hidden = true;
     $('app').hidden = true;
+    hideAuthScreen();
     $('onboarding').hidden = false;
   }
 
@@ -838,12 +841,17 @@
     $('auth-pass').setAttribute('autocomplete', up ? 'new-password' : 'current-password');
     $('auth-error').hidden = true;
   }
-  function openAuth() {
+  function showAuthScreen() {
+    $('lang-screen').hidden = true;
+    $('onboarding').hidden = true;
+    $('app').hidden = true;
     $('auth-email').value = ''; $('auth-pass').value = '';
+    $('auth-error').hidden = true;
     setAuthMode('in');
-    openSheetEl('auth-sheet', 'auth-backdrop');
-    setTimeout(function () { $('auth-email').focus(); }, 350);
+    $('auth-screen').hidden = false;
+    setTimeout(function () { try { $('auth-email').focus(); } catch (e) {} }, 200);
   }
+  function openAuth() { showAuthScreen(); }
   function showAuthErr(msg) { var el = $('auth-error'); el.textContent = msg; el.hidden = false; }
 
   function submitAuth() {
@@ -861,10 +869,10 @@
       return Cloud.load(auth.uid, auth.idToken);
     }).then(function (data) {
       if (!applyCloudData(data)) cloudPushNow(); // empty/new account -> seed with current local data
-      closeSheetEl('auth-sheet', 'auth-backdrop');
+      $('auth-screen').hidden = true;
       closeSheetEl('settings', 'set-backdrop');
       applyTheme(); applyLang();
-      if (state.profile.name && state.profile.rate) showApp(); else showOnboarding();
+      routeInitial();
       updateAccountUI();
       toast(t('t_signedin'));
     }).catch(function (e) {
@@ -879,7 +887,7 @@
     save();
     closeSheetEl('settings', 'set-backdrop');
     updateAccountUI();
-    showOnboarding();
+    showAuthScreen();
     toast(t('t_signedout'));
   }
 
@@ -1035,15 +1043,11 @@
     $('restore-file').addEventListener('change', onRestoreFile);
     $('btn-clear').addEventListener('click', clearData);
 
-    // account / cloud sign-in
-    $('btn-signin').addEventListener('click', openAuth);
-    $('onb-signin').addEventListener('click', openAuth);
+    // account / cloud sign-in (sign-in is required)
     $('btn-signout').addEventListener('click', doSignOut);
     $('btn-admin').addEventListener('click', openAdmin);
     $('admin-close').addEventListener('click', function () { closeSheetEl('admin-sheet', 'admin-backdrop'); });
     $('admin-backdrop').addEventListener('click', function () { closeSheetEl('admin-sheet', 'admin-backdrop'); });
-    $('auth-close').addEventListener('click', function () { closeSheetEl('auth-sheet', 'auth-backdrop'); });
-    $('auth-backdrop').addEventListener('click', function () { closeSheetEl('auth-sheet', 'auth-backdrop'); });
     $('auth-submit').addEventListener('click', submitAuth);
     $('auth-toggle').addEventListener('click', function () { setAuthMode(authMode === 'up' ? 'in' : 'up'); });
     $('auth-pass').addEventListener('keydown', function (e) { if (e.key === 'Enter') submitAuth(); });
@@ -1080,8 +1084,9 @@
   }
 
   function routeInitial() {
-    if (!state.prefs.lang) showLangScreen();
-    else if (state.profile.name && state.profile.rate) showApp();
+    if (!state.prefs.lang) { showLangScreen(); return; }
+    if (!auth) { showAuthScreen(); return; }              // sign-in is required
+    if (state.profile.name && state.profile.rate) showApp();
     else showOnboarding();
   }
 

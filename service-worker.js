@@ -1,5 +1,5 @@
 /* ShiftPay service worker — offline-first app shell. */
-var CACHE = 'shiftpay-v19';
+var CACHE = 'shiftpay-v20';
 var ASSETS = [
   './',
   './index.html',
