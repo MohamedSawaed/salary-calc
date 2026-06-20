@@ -40,23 +40,70 @@
     }).then(function (r) { return r.json(); }).then(function (j) { if (j.error) throw mkErr(j.error); return j; });
   }
 
-  /** Returns the stored object, or null if the user has no cloud data yet. */
+  /* ---- JS <-> Firestore typed-value converters (so fields are readable in the console) ---- */
+  function toFs(v) {
+    if (v === null || v === undefined) return { nullValue: null };
+    if (typeof v === 'boolean') return { booleanValue: v };
+    if (typeof v === 'number') return Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v };
+    if (typeof v === 'string') return { stringValue: v };
+    if (Array.isArray(v)) return { arrayValue: { values: v.map(toFs) } };
+    if (typeof v === 'object') {
+      var fields = {};
+      Object.keys(v).forEach(function (k) { fields[k] = toFs(v[k]); });
+      return { mapValue: { fields: fields } };
+    }
+    return { stringValue: String(v) };
+  }
+  function fromFs(f) {
+    if (!f) return null;
+    if ('nullValue' in f) return null;
+    if ('booleanValue' in f) return f.booleanValue;
+    if ('integerValue' in f) return parseInt(f.integerValue, 10);
+    if ('doubleValue' in f) return f.doubleValue;
+    if ('stringValue' in f) return f.stringValue;
+    if ('timestampValue' in f) return f.timestampValue;
+    if ('arrayValue' in f) return (f.arrayValue.values || []).map(fromFs);
+    if ('mapValue' in f) {
+      var o = {}, fl = f.mapValue.fields || {};
+      Object.keys(fl).forEach(function (k) { o[k] = fromFs(fl[k]); });
+      return o;
+    }
+    return null;
+  }
+
+  /** Returns a normalized object { name, hourlyWage, currency, email, shifts, updatedAt } or null. */
   function load(uid, idToken) {
     return fetch(docUrl(uid), { headers: { Authorization: 'Bearer ' + idToken } }).then(function (r) {
       if (r.status === 404) return null;
       return r.json().then(function (j) {
         if (j.error) throw mkErr(j.error);
-        var d = j.fields && j.fields.data;
-        return (d && d.stringValue) ? JSON.parse(d.stringValue) : null;
+        var f = j.fields; if (!f) return null;
+        if (f.data && f.data.stringValue) { // legacy single-blob format -> normalize
+          try {
+            var o = JSON.parse(f.data.stringValue);
+            return { name: o.profile && o.profile.name, hourlyWage: o.profile && o.profile.rate,
+              currency: o.profile && o.profile.currency, shifts: o.shifts || {} };
+          } catch (e) { return null; }
+        }
+        return fromFs({ mapValue: { fields: f } });
       });
     });
   }
 
+  /** obj = { name, hourlyWage, currency, email, shifts }. Stored as separate readable fields. */
   function save(uid, idToken, obj) {
-    return fetch(docUrl(uid) + '?updateMask.fieldPaths=data', {
+    var fields = {
+      name: toFs(obj.name || ''),
+      hourlyWage: toFs(obj.hourlyWage || 0),
+      currency: toFs(obj.currency || ''),
+      email: toFs(obj.email || ''),
+      updatedAt: { timestampValue: new Date().toISOString() },
+      shifts: toFs(obj.shifts || {})
+    };
+    return fetch(docUrl(uid), { // no updateMask -> overwrite with this full, structured set
       method: 'PATCH',
       headers: { Authorization: 'Bearer ' + idToken, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fields: { data: { stringValue: JSON.stringify(obj) } } })
+      body: JSON.stringify({ fields: fields })
     }).then(function (r) { return r.json().then(function (j) { if (j.error) throw mkErr(j.error); return true; }); });
   }
 

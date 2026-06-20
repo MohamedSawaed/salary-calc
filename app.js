@@ -758,7 +758,12 @@
       saveAuth(); return auth.idToken;
     });
   }
-  function cloudPayload() { return { profile: state.profile, shifts: state.shifts, v: 1 }; }
+  function cloudPayload() {
+    return {
+      name: state.profile.name, hourlyWage: state.profile.rate, currency: state.profile.currency,
+      email: auth ? auth.email : '', shifts: state.shifts
+    };
+  }
   function setSync(key) { var el = $('acc-sync'); if (el) el.textContent = key ? t(key) : ''; }
 
   function cloudPushNow() {
@@ -774,8 +779,12 @@
     pushTimer = setTimeout(cloudPushNow, 700);
   }
   function applyCloudData(data) {
-    if (!data || !(data.profile || data.shifts)) return false;
-    state.profile = Object.assign({ name: '', rate: 0, currency: '₪' }, data.profile || {});
+    if (!data) return false;
+    state.profile = {
+      name: data.name || '',
+      rate: (data.hourlyWage != null ? data.hourlyWage : 0),
+      currency: data.currency || '₪'
+    };
     state.shifts = (data.shifts && typeof data.shifts === 'object') ? data.shifts : {};
     var prev = pulling; pulling = true; // don't echo the just-pulled data back to the cloud
     save(); migrate();
