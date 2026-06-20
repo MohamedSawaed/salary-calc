@@ -409,6 +409,16 @@ main#app { padding-bottom: calc(var(--safe-bot) + 82px); }
 }
 .link-btn:active { opacity: .55; }
 
+/* admin dashboard */
+#admin-list { display: flex; flex-direction: column; gap: 10px; }
+.admin-row { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 14px; }
+.admin-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.admin-name { font-size: 15px; font-weight: 600; color: var(--ink); }
+.admin-wage { font-size: 13px; font-weight: 600; color: var(--money); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.admin-email { font-size: 12px; color: var(--faint); margin-top: 3px; word-break: break-all; }
+.admin-stats { display: flex; justify-content: space-between; gap: 10px; margin-top: 10px; font-size: 12.5px; color: var(--dim); font-variant-numeric: tabular-nums; }
+.admin-msg { text-align: center; color: var(--faint); font-size: 13px; padding: 22px; }
+
 /* toast */
 .toast {
   position: fixed; left: 50%; bottom: calc(var(--safe-bot) + 92px);

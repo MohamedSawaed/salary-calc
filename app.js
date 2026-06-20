@@ -206,12 +206,13 @@
   }
 
   /** Paid minutes worked Sun..Thu of the week that ends on this Friday key. */
-  function prevWeekPaidMin(key) {
+  function prevWeekPaidMin(key, shiftsMap) {
+    shiftsMap = shiftsMap || state.shifts;
     var p = parseKey(key);
     var sum = 0;
     for (var off = 5; off >= 1; off--) {       // Friday-5=Sunday .. Friday-1=Thursday
       var dd = new Date(p.y, p.m, p.d - off);   // Date rolls over month/year boundaries
-      var s = state.shifts[keyOf(dd.getFullYear(), dd.getMonth(), dd.getDate())];
+      var s = shiftsMap[keyOf(dd.getFullYear(), dd.getMonth(), dd.getDate())];
       if (s && s.type !== 'vacation') {
         sum += SalaryCalc.paidMinutesForWorkedDay(s.start, s.end, s.type, SalaryCalc.BREAK_MIN);
       }
@@ -219,22 +220,38 @@
     return sum;
   }
 
-  /** The wage a shift is paid at: its own saved rate, else the current profile rate. */
-  function rateOf(shift) {
-    return (shift && shift.rate != null) ? shift.rate : state.profile.rate;
+  /** The wage a shift is paid at: its own saved rate, else a fallback (profile/user wage). */
+  function rateOf(shift, fallbackRate) {
+    if (shift && shift.rate != null) return shift.rate;
+    return fallbackRate != null ? fallbackRate : state.profile.rate;
   }
 
-  /** Week-aware pay for one day. `override` supplies unsaved editor inputs. */
-  function dayResult(key, override) {
-    var shift = override !== undefined ? override : state.shifts[key];
+  /** Week-aware pay for one day. `override` supplies unsaved editor inputs.
+      `shiftsMap`/`fallbackRate` let it compute over another user's data (admin view). */
+  function dayResult(key, override, shiftsMap, fallbackRate) {
+    shiftsMap = shiftsMap || state.shifts;
+    var shift = override !== undefined ? override : shiftsMap[key];
     if (!shift) return null;
-    var rate = rateOf(shift);
+    var rate = rateOf(shift, fallbackRate);
     if (shift.type === 'vacation') return SalaryCalc.vacationResult(rate);
     var fri = isFridayKey(key);
     return SalaryCalc.computeDayPay({
       shift: shift, isFriday: fri, rate: rate,
-      prevPaidMin: fri ? prevWeekPaidMin(key) : 0
+      prevPaidMin: fri ? prevWeekPaidMin(key, shiftsMap) : 0
     });
+  }
+
+  /** Month totals (pay/hours/shift-count) for an arbitrary shifts map. */
+  function totalsFor(shiftsMap, y, m, fallbackRate) {
+    var pay = 0, hours = 0, count = 0;
+    var dim = new Date(y, m + 1, 0).getDate();
+    for (var d = 1; d <= dim; d++) {
+      var k = keyOf(y, m, d);
+      if (!shiftsMap[k]) continue;
+      var res = dayResult(k, undefined, shiftsMap, fallbackRate);
+      if (res) { pay += res.pay; hours += res.totalHours; count++; }
+    }
+    return { pay: pay, hours: hours, count: count };
   }
 
   function renderCalendar() {
@@ -808,6 +825,7 @@
     } else {
       $('acc-signedin').hidden = true; $('acc-signedout').hidden = false;
     }
+    if ($('btn-admin')) $('btn-admin').hidden = !isAdmin();
   }
 
   function setAuthMode(mode) {
@@ -863,6 +881,44 @@
     updateAccountUI();
     showOnboarding();
     toast(t('t_signedout'));
+  }
+
+  /* ---- admin dashboard (all users) ---- */
+  var ADMIN_EMAIL = 'sawaedmohamed.20@gmail.com';
+  function isAdmin() { return !!(auth && auth.email && auth.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()); }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function fmtNum(n) { return (Number(n) || 0).toLocaleString('en-US', { maximumFractionDigits: 2 }); }
+
+  function openAdmin() {
+    openSheetEl('admin-sheet', 'admin-backdrop');
+    var list = $('admin-list');
+    list.innerHTML = '<p class="admin-msg">' + t('admin_loading') + '</p>';
+    $('admin-count').textContent = '';
+    ensureToken().then(function (tok) { return Cloud.listUsers(tok); })
+      .then(renderAdmin)
+      .catch(function () { list.innerHTML = '<p class="admin-msg">' + t('admin_error') + '</p>'; });
+  }
+  function renderAdmin(users) {
+    var list = $('admin-list');
+    list.innerHTML = '';
+    $('admin-count').textContent = users.length;
+    if (!users.length) { list.innerHTML = '<p class="admin-msg">' + t('admin_none') + '</p>'; return; }
+    var now = new Date(), y = now.getFullYear(), m = now.getMonth();
+    users.sort(function (a, b) { return String(a.name || '').localeCompare(String(b.name || '')); });
+    users.forEach(function (u) {
+      var cur = u.currency || '₪';
+      var tot = totalsFor(u.shifts || {}, y, m, u.hourlyWage);
+      var allShifts = Object.keys(u.shifts || {}).length;
+      var row = document.createElement('div');
+      row.className = 'admin-row';
+      row.innerHTML =
+        '<div class="admin-top"><span class="admin-name">' + esc(u.name || '—') + '</span>' +
+        '<span class="admin-wage">' + cur + fmtNum(u.hourlyWage || 0) + '/' + t('u_h') + '</span></div>' +
+        '<div class="admin-email">' + esc(u.email || u.uid) + '</div>' +
+        '<div class="admin-stats"><span>' + allShifts + ' ' + t('stat_shifts') + '</span>' +
+        '<span>' + t('admin_month') + ': ' + fmtHours(tot.hours) + ' · ' + cur + fmtNum(Math.round(tot.pay)) + '</span></div>';
+      list.appendChild(row);
+    });
   }
 
   // Detailed month export: one row per day (hours per tier, break, pay) + totals + % shares.
@@ -983,6 +1039,9 @@
     $('btn-signin').addEventListener('click', openAuth);
     $('onb-signin').addEventListener('click', openAuth);
     $('btn-signout').addEventListener('click', doSignOut);
+    $('btn-admin').addEventListener('click', openAdmin);
+    $('admin-close').addEventListener('click', function () { closeSheetEl('admin-sheet', 'admin-backdrop'); });
+    $('admin-backdrop').addEventListener('click', function () { closeSheetEl('admin-sheet', 'admin-backdrop'); });
     $('auth-close').addEventListener('click', function () { closeSheetEl('auth-sheet', 'auth-backdrop'); });
     $('auth-backdrop').addEventListener('click', function () { closeSheetEl('auth-sheet', 'auth-backdrop'); });
     $('auth-submit').addEventListener('click', submitAuth);

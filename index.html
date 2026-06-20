@@ -209,6 +209,7 @@
         <div id="acc-signedin" hidden>
           <p class="acc-email" id="acc-email"></p>
           <p class="acc-sync" id="acc-sync"></p>
+          <button id="btn-admin" class="btn-ghost btn-block" hidden data-i18n="admin_open">View all users (admin)</button>
           <button id="btn-signout" class="btn-ghost-danger btn-block" data-i18n="acc_signout">Sign out</button>
         </div>
       </div>
@@ -281,6 +282,19 @@
       <p id="auth-error" class="auth-error" hidden></p>
       <button id="auth-submit" class="btn-primary btn-block" data-i18n="auth_do_in">Sign in</button>
       <button id="auth-toggle" class="link-btn" data-i18n="auth_switch_up">New here? Create an account</button>
+    </div>
+  </section>
+
+  <!-- ============ ADMIN: ALL USERS (bottom sheet) ============ -->
+  <div id="admin-backdrop" class="backdrop" hidden></div>
+  <section id="admin-sheet" class="sheet" hidden aria-modal="true" role="dialog">
+    <div class="sheet-handle"></div>
+    <header class="sheet-head">
+      <h2><span data-i18n="admin_title">All users</span> · <span id="admin-count"></span></h2>
+      <button id="admin-close" class="icon-btn" aria-label="Close">✕</button>
+    </header>
+    <div class="sheet-body">
+      <div id="admin-list"></div>
     </div>
   </section>
 

@@ -107,7 +107,30 @@
     }).then(function (r) { return r.json().then(function (j) { if (j.error) throw mkErr(j.error); return true; }); });
   }
 
-  var api = { configured: configured, signUp: signUp, signIn: signIn, refresh: refresh, load: load, save: save };
+  /** Admin only (allowed by rules): list every user's record. Returns [{ uid, name, hourlyWage, currency, email, shifts, updatedAt }]. */
+  function listUsers(idToken) {
+    var url = 'https://firestore.googleapis.com/v1/projects/' + cfg().projectId +
+      '/databases/(default)/documents/users?pageSize=1000';
+    return fetch(url, { headers: { Authorization: 'Bearer ' + idToken } })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (j.error) throw mkErr(j.error);
+        return (j.documents || []).map(function (doc) {
+          var uid = doc.name.split('/').pop();
+          var f = doc.fields || {};
+          var obj;
+          if (f.data && f.data.stringValue) { // legacy blob
+            try { var o = JSON.parse(f.data.stringValue); obj = { name: o.profile && o.profile.name, hourlyWage: o.profile && o.profile.rate, currency: o.profile && o.profile.currency, shifts: o.shifts || {} }; }
+            catch (e) { obj = {}; }
+          } else { obj = fromFs({ mapValue: { fields: f } }) || {}; }
+          obj.uid = uid;
+          obj.shifts = obj.shifts || {};
+          return obj;
+        });
+      });
+  }
+
+  var api = { configured: configured, signUp: signUp, signIn: signIn, refresh: refresh, load: load, save: save, listUsers: listUsers };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   global.Cloud = api;
 })(typeof window !== 'undefined' ? window : globalThis);
