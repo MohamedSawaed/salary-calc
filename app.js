@@ -40,6 +40,7 @@
   }
   function save() {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
+    if (typeof cloudPush === 'function') cloudPush(); // sync to cloud if signed in (debounced, hoisted)
   }
   // Older shifts had no rate of their own. Freeze them at the current wage once,
   // so a later wage change won't retroactively rewrite past months.
@@ -132,6 +133,7 @@
     document.querySelectorAll('[data-i18n-ph]').forEach(function (el) { el.setAttribute('placeholder', t(el.getAttribute('data-i18n-ph'))); });
     document.querySelectorAll('[data-i18n-html]').forEach(function (el) { el.innerHTML = t(el.getAttribute('data-i18n-html')); });
     renderLangPickers();
+    if (typeof updateAccountUI === 'function') updateAccountUI();
     if (!$('app').hidden) { updateGreeting(); renderWeekdays(); renderView(); }
   }
 
@@ -639,6 +641,7 @@
       b.classList.toggle('active', on);
       b.setAttribute('aria-pressed', on ? 'true' : 'false');
     });
+    updateAccountUI();
     openSheetEl('settings', 'set-backdrop');
   }
   function saveSettings() {
@@ -724,6 +727,133 @@
       toast(t('t_restored'));
     };
     reader.readAsText(file);
+  }
+
+  /* ---------------- account / cloud sync (Firebase) ---------------- */
+  var AUTH_KEY = 'shiftpay.auth';
+  var auth = null;          // { uid, email, idToken, refreshToken, expiresAt }
+  var authMode = 'in';      // 'in' | 'up'
+  var pushTimer = null;
+  var pulling = false;      // true while loading from cloud -> suppress echo writes
+
+  function loadAuth() { try { var r = localStorage.getItem(AUTH_KEY); auth = r ? JSON.parse(r) : null; } catch (e) { auth = null; } }
+  function saveAuth() { try { localStorage.setItem(AUTH_KEY, JSON.stringify(auth)); } catch (e) {} }
+  function clearAuthState() { auth = null; try { localStorage.removeItem(AUTH_KEY); } catch (e) {} }
+
+  function authErrMsg(code) {
+    code = code || '';
+    if (code.indexOf('EMAIL_EXISTS') >= 0) return t('err_email_exists');
+    if (code.indexOf('INVALID_PASSWORD') >= 0 || code.indexOf('INVALID_LOGIN_CREDENTIALS') >= 0 || code.indexOf('EMAIL_NOT_FOUND') >= 0) return t('err_bad_creds');
+    if (code.indexOf('WEAK_PASSWORD') >= 0) return t('err_weak_pass');
+    if (code.indexOf('INVALID_EMAIL') >= 0 || code.indexOf('MISSING_EMAIL') >= 0) return t('err_bad_email');
+    return t('err_generic');
+  }
+
+  function ensureToken() {
+    if (!auth) return Promise.reject(new Error('not signed in'));
+    if (Date.now() < (auth.expiresAt || 0) - 60000) return Promise.resolve(auth.idToken);
+    return Cloud.refresh(auth.refreshToken).then(function (j) {
+      auth.idToken = j.id_token; auth.refreshToken = j.refresh_token;
+      auth.expiresAt = Date.now() + (parseInt(j.expires_in, 10) || 3600) * 1000;
+      saveAuth(); return auth.idToken;
+    });
+  }
+  function cloudPayload() { return { profile: state.profile, shifts: state.shifts, v: 1 }; }
+  function setSync(key) { var el = $('acc-sync'); if (el) el.textContent = key ? t(key) : ''; }
+
+  function cloudPushNow() {
+    if (!auth) return Promise.resolve();
+    setSync('sync_syncing');
+    return ensureToken().then(function (tok) { return Cloud.save(auth.uid, tok, cloudPayload()); })
+      .then(function () { setSync('sync_synced'); })
+      .catch(function () { setSync('sync_offline'); });
+  }
+  function cloudPush() {
+    if (pulling || !auth || !Cloud.configured()) return;
+    clearTimeout(pushTimer);
+    pushTimer = setTimeout(cloudPushNow, 700);
+  }
+  function applyCloudData(data) {
+    if (!data || !(data.profile || data.shifts)) return false;
+    state.profile = Object.assign({ name: '', rate: 0, currency: '₪' }, data.profile || {});
+    state.shifts = (data.shifts && typeof data.shifts === 'object') ? data.shifts : {};
+    var prev = pulling; pulling = true; // don't echo the just-pulled data back to the cloud
+    save(); migrate();
+    pulling = prev;
+    return true;
+  }
+  function cloudPull() {
+    if (!auth) return Promise.resolve(null);
+    return ensureToken().then(function (tok) { return Cloud.load(auth.uid, tok); }).then(function (data) {
+      applyCloudData(data); return data;
+    });
+  }
+
+  function updateAccountUI() {
+    var box = document.querySelector('.account-box');
+    if (box) box.hidden = !Cloud.configured();
+    if (auth) {
+      $('acc-signedin').hidden = false; $('acc-signedout').hidden = true;
+      $('acc-email').textContent = t('acc_as', { email: auth.email });
+      setSync('sync_synced');
+    } else {
+      $('acc-signedin').hidden = true; $('acc-signedout').hidden = false;
+    }
+  }
+
+  function setAuthMode(mode) {
+    authMode = mode;
+    var up = mode === 'up';
+    $('auth-title').textContent = t(up ? 'auth_do_up' : 'auth_do_in');
+    $('auth-submit').textContent = t(up ? 'auth_do_up' : 'auth_do_in');
+    $('auth-toggle').textContent = t(up ? 'auth_switch_in' : 'auth_switch_up');
+    $('auth-pass-hint').hidden = !up;
+    $('auth-pass').setAttribute('autocomplete', up ? 'new-password' : 'current-password');
+    $('auth-error').hidden = true;
+  }
+  function openAuth() {
+    $('auth-email').value = ''; $('auth-pass').value = '';
+    setAuthMode('in');
+    openSheetEl('auth-sheet', 'auth-backdrop');
+    setTimeout(function () { $('auth-email').focus(); }, 350);
+  }
+  function showAuthErr(msg) { var el = $('auth-error'); el.textContent = msg; el.hidden = false; }
+
+  function submitAuth() {
+    var email = $('auth-email').value.trim();
+    var pw = $('auth-pass').value;
+    $('auth-error').hidden = true;
+    if (!email || email.indexOf('@') < 1) { showAuthErr(t('err_bad_email')); return; }
+    if (!pw || pw.length < 6) { showAuthErr(t('err_weak_pass')); return; }
+    var btn = $('auth-submit'); btn.disabled = true; btn.style.opacity = '.6';
+    var fn = authMode === 'up' ? Cloud.signUp : Cloud.signIn;
+    fn(email, pw).then(function (j) {
+      auth = { uid: j.localId, email: email, idToken: j.idToken, refreshToken: j.refreshToken,
+        expiresAt: Date.now() + (parseInt(j.expiresIn, 10) || 3600) * 1000 };
+      saveAuth();
+      return Cloud.load(auth.uid, auth.idToken);
+    }).then(function (data) {
+      if (!applyCloudData(data)) cloudPushNow(); // empty/new account -> seed with current local data
+      closeSheetEl('auth-sheet', 'auth-backdrop');
+      closeSheetEl('settings', 'set-backdrop');
+      applyTheme(); applyLang();
+      if (state.profile.name && state.profile.rate) showApp(); else showOnboarding();
+      updateAccountUI();
+      toast(t('t_signedin'));
+    }).catch(function (e) {
+      showAuthErr(authErrMsg(e && e.code));
+    }).then(function () { btn.disabled = false; btn.style.opacity = '1'; });
+  }
+
+  function doSignOut() {
+    clearAuthState();
+    state.profile = { name: '', rate: 0, currency: '₪' };
+    state.shifts = {};
+    save();
+    closeSheetEl('settings', 'set-backdrop');
+    updateAccountUI();
+    showOnboarding();
+    toast(t('t_signedout'));
   }
 
   // Detailed month export: one row per day (hours per tier, break, pay) + totals + % shares.
@@ -839,6 +969,16 @@
     $('btn-restore').addEventListener('click', function () { $('restore-file').value = ''; $('restore-file').click(); });
     $('restore-file').addEventListener('change', onRestoreFile);
     $('btn-clear').addEventListener('click', clearData);
+
+    // account / cloud sign-in
+    $('btn-signin').addEventListener('click', openAuth);
+    $('onb-signin').addEventListener('click', openAuth);
+    $('btn-signout').addEventListener('click', doSignOut);
+    $('auth-close').addEventListener('click', function () { closeSheetEl('auth-sheet', 'auth-backdrop'); });
+    $('auth-backdrop').addEventListener('click', function () { closeSheetEl('auth-sheet', 'auth-backdrop'); });
+    $('auth-submit').addEventListener('click', submitAuth);
+    $('auth-toggle').addEventListener('click', function () { setAuthMode(authMode === 'up' ? 'in' : 'up'); });
+    $('auth-pass').addEventListener('keydown', function (e) { if (e.key === 'Enter') submitAuth(); });
     document.querySelectorAll('#theme-seg .seg-btn').forEach(function (b) {
       b.addEventListener('click', function () {
         state.prefs.theme = b.getAttribute('data-theme');
@@ -871,16 +1011,33 @@
     zone.insertBefore(btn, zone.firstChild);
   }
 
+  function routeInitial() {
+    if (!state.prefs.lang) showLangScreen();
+    else if (state.profile.name && state.profile.rate) showApp();
+    else showOnboarding();
+  }
+
   /* ---------------- boot ---------------- */
   function init() {
     load();
+    loadAuth();
+    pulling = true;            // suppress cloud writes until the first pull settles
     migrate();
     applyTheme();
     applyLang();
     bind();
-    if (!state.prefs.lang) showLangScreen();
-    else if (state.profile.name && state.profile.rate) showApp();
-    else showOnboarding();
+    routeInitial();
+    updateAccountUI();
+
+    // signed in -> pull the latest from the cloud, then re-route/render
+    if (auth && Cloud.configured()) {
+      cloudPull()
+        .then(function () { routeInitial(); updateAccountUI(); })
+        .catch(function () { setSync('sync_offline'); })
+        .then(function () { pulling = false; });
+    } else {
+      pulling = false;
+    }
 
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {

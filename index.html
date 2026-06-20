@@ -61,6 +61,8 @@
       <div class="rate-chip"><span class="dot dot-friday"></span><span data-i18n="chip_friday">Friday · 42h weekly</span></div>
       <div class="rate-chip"><span class="dot dot-vac"></span><span data-i18n="chip_vacation">Vacation · 8.6h</span></div>
     </div>
+
+    <button id="onb-signin" class="link-btn" data-i18n="onb_signin">Have an account? Sign in</button>
   </section>
 
   <!-- ============ MAIN APP ============ -->
@@ -199,6 +201,18 @@
       <button id="set-close" class="icon-btn" aria-label="Close">✕</button>
     </header>
     <div class="sheet-body">
+      <div class="field account-box">
+        <span class="field-label" data-i18n="acc_title">Account</span>
+        <div id="acc-signedout">
+          <button id="btn-signin" class="btn-ghost btn-block" data-i18n="acc_signin">Sign in / Create account</button>
+        </div>
+        <div id="acc-signedin" hidden>
+          <p class="acc-email" id="acc-email"></p>
+          <p class="acc-sync" id="acc-sync"></p>
+          <button id="btn-signout" class="btn-ghost-danger btn-block" data-i18n="acc_signout">Sign out</button>
+        </div>
+      </div>
+
       <label class="field">
         <span class="field-label" data-i18n="set_name">Name</span>
         <input id="set-name" type="text" maxlength="40" />
@@ -245,11 +259,38 @@
     </div>
   </section>
 
+  <!-- ============ ACCOUNT / SIGN IN (bottom sheet) ============ -->
+  <div id="auth-backdrop" class="backdrop" hidden></div>
+  <section id="auth-sheet" class="sheet" hidden aria-modal="true" role="dialog">
+    <div class="sheet-handle"></div>
+    <header class="sheet-head">
+      <h2 id="auth-title" data-i18n="auth_do_in">Sign in</h2>
+      <button id="auth-close" class="icon-btn" aria-label="Close">✕</button>
+    </header>
+    <div class="sheet-body">
+      <p class="field-hint" data-i18n="auth_sub">Your shifts are saved online and available on any device you sign in to.</p>
+      <label class="field">
+        <span class="field-label" data-i18n="auth_email">Email</span>
+        <input id="auth-email" type="email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" />
+      </label>
+      <label class="field">
+        <span class="field-label" data-i18n="auth_pass">Password</span>
+        <input id="auth-pass" type="password" autocomplete="current-password" />
+        <span class="field-hint" id="auth-pass-hint" data-i18n="auth_pass_hint" hidden>At least 6 characters.</span>
+      </label>
+      <p id="auth-error" class="auth-error" hidden></p>
+      <button id="auth-submit" class="btn-primary btn-block" data-i18n="auth_do_in">Sign in</button>
+      <button id="auth-toggle" class="link-btn" data-i18n="auth_switch_up">New here? Create an account</button>
+    </div>
+  </section>
+
   <!-- toast -->
   <div id="toast" class="toast" hidden></div>
 
+  <script>window.FIREBASE = { apiKey: "AIzaSyC5pa4xZ3k_jmD3BaNcysnYISYwh1e2n6w", projectId: "shiftpay-79918" };</script>
   <script src="calc.js"></script>
   <script src="i18n.js"></script>
+  <script src="cloud.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

@@ -1,11 +1,12 @@
 /* ShiftPay service worker — offline-first app shell. */
-var CACHE = 'shiftpay-v16';
+var CACHE = 'shiftpay-v17';
 var ASSETS = [
   './',
   './index.html',
   './styles.css',
   './calc.js',
   './i18n.js',
+  './cloud.js',
   './app.js',
   './manifest.webmanifest',
   './icons/icon-192.png',
