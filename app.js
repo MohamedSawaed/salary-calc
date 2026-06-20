@@ -702,6 +702,30 @@
     saveFile(JSON.stringify(state, null, 2), 'shiftpay-data.json', 'application/json');
   }
 
+  // Restore: load a previously backed-up JSON (from Drive / iCloud / Files) and replace data.
+  function onRestoreFile(e) {
+    var file = e.target.files && e.target.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function () {
+      var data;
+      try { data = JSON.parse(reader.result); } catch (err) { data = null; }
+      if (!data || typeof data !== 'object' || (!data.profile && !data.shifts)) { toast(t('t_restore_bad')); return; }
+      if (!confirm(t('restore_confirm'))) return;
+      state.profile = Object.assign({ name: '', rate: 0, currency: '₪' }, data.profile || {});
+      state.prefs = Object.assign(state.prefs, data.prefs || {});
+      state.shifts = (data.shifts && typeof data.shifts === 'object') ? data.shifts : {};
+      save(); migrate();
+      applyTheme(); applyLang();
+      closeSheetEl('settings', 'set-backdrop');
+      if (state.profile.name && state.profile.rate) showApp();
+      else if (!state.prefs.lang) showLangScreen();
+      else showOnboarding();
+      toast(t('t_restored'));
+    };
+    reader.readAsText(file);
+  }
+
   // Detailed month export: one row per day (hours per tier, break, pay) + totals + % shares.
   function exportMonthCSV() {
     var rows = [];
@@ -811,7 +835,9 @@
     $('set-backdrop').addEventListener('click', function () { closeSheetEl('settings', 'set-backdrop'); });
     $('set-save').addEventListener('click', saveSettings);
     $('btn-export-csv').addEventListener('click', exportMonthCSV);
-    $('btn-export').addEventListener('click', exportData);
+    $('btn-backup').addEventListener('click', exportData);
+    $('btn-restore').addEventListener('click', function () { $('restore-file').value = ''; $('restore-file').click(); });
+    $('restore-file').addEventListener('change', onRestoreFile);
     $('btn-clear').addEventListener('click', clearData);
     document.querySelectorAll('#theme-seg .seg-btn').forEach(function (b) {
       b.addEventListener('click', function () {

@@ -229,9 +229,16 @@
 
       <button id="set-save" class="btn-primary btn-block" data-i18n="set_save">Save changes</button>
 
+      <div class="field">
+        <span class="field-label" data-i18n="set_backup">Cloud backup</span>
+        <button id="btn-backup" class="btn-ghost" data-i18n="backup_save">Back up my data</button>
+        <button id="btn-restore" class="btn-ghost" data-i18n="restore_btn">Restore from a backup</button>
+        <input id="restore-file" type="file" accept="application/json,.json" hidden />
+        <span class="field-hint" data-i18n="backup_hint">Save a copy to Google Drive / iCloud / Files, then load it on any device.</span>
+      </div>
+
       <div class="danger-zone">
-        <button id="btn-export-csv" class="btn-ghost" data-i18n="exp_csv">⤓ Export this month (CSV)</button>
-        <button id="btn-export" class="btn-ghost" data-i18n="exp_json">⤓ Export my data (JSON)</button>
+        <button id="btn-export-csv" class="btn-ghost" data-i18n="exp_csv">Export this month (CSV)</button>
         <button id="btn-clear" class="btn-ghost-danger btn-block" data-i18n="erase">Erase all data</button>
       </div>
       <p class="version" data-i18n="version">ShiftPay · works offline · data stays on this device</p>
