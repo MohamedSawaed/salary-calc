@@ -230,14 +230,23 @@
     return fallbackRate != null ? fallbackRate : state.profile.rate;
   }
 
-  /** Count consecutive sick days immediately BEFORE `key` (so this day's position = result + 1). */
+  function isWeekendKey(key) {
+    var p = parseKey(key);
+    var dow = new Date(p.y, p.m, p.d).getDay(); // 0=Sun .. 5=Fri, 6=Sat
+    return dow === 5 || dow === 6;
+  }
+
+  /** Count the prior sick "counted" days before `key` (this day's position = result + 1).
+      Fri/Sat are skipped — they don't count and don't break the run. */
   function sickStreakBefore(key, shiftsMap) {
     shiftsMap = shiftsMap || state.shifts;
     var p = parseKey(key), n = 0;
     for (var back = 1; back < 370; back++) {
       var dd = new Date(p.y, p.m, p.d - back);
+      var dow = dd.getDay();
+      if (dow === 5 || dow === 6) continue;   // weekend: skip (no count, no break)
       var s = shiftsMap[keyOf(dd.getFullYear(), dd.getMonth(), dd.getDate())];
-      if (s && s.type === 'sick') n++; else break;
+      if (s && s.type === 'sick') n++; else break;   // a non-sick weekday ends the run
     }
     return n;
   }
@@ -250,7 +259,7 @@
     if (!shift) return null;
     var rate = rateOf(shift, fallbackRate);
     if (shift.type === 'vacation') return SalaryCalc.vacationResult(rate);
-    if (shift.type === 'sick') return SalaryCalc.sickResult(rate, sickStreakBefore(key, shiftsMap) + 1);
+    if (shift.type === 'sick') return SalaryCalc.sickResult(rate, isWeekendKey(key) ? 0 : sickStreakBefore(key, shiftsMap) + 1);
     var fri = isFridayKey(key);
     return SalaryCalc.computeDayPay({
       shift: shift, isFriday: fri, rate: rate,
@@ -583,17 +592,17 @@
       return;
     }
 
-    // ----- sick (consecutive tiers) -----
+    // ----- sick (consecutive tiers; Fri/Sat unpaid & uncounted, but don't break) -----
     if (editMode === 'sick') {
-      var pos = sickStreakBefore(editKey, state.shifts) + 1;
+      var weekend = isWeekendKey(editKey);
+      var pos = weekend ? 0 : sickStreakBefore(editKey, state.shifts) + 1;
       var sr = SalaryCalc.sickResult(rate, pos);
       var pctTxt = Math.round(sr.sickPct * 100) + '%';
       $('prev-type').innerHTML = '<span class="dot dot-sick"></span>' + t('prev_sick');
       $('prev-pay').textContent = fmtMoney(sr.pay);
       bars.innerHTML = sr.sickPct > 0 ? '<i class="seg-100" style="width:' + (sr.sickPct * 100) + '%"></i>' : '';
-      rows.innerHTML =
-        '<div class="prev-vac"><span class="vac-line">' +
-        t('sick_day_n', { n: pos, pct: pctTxt }) + '</span></div>' + rateNoteHtml();
+      var lineTxt = weekend ? t('sick_weekend') : t('sick_day_n', { n: pos, pct: pctTxt });
+      rows.innerHTML = '<div class="prev-vac"><span class="vac-line">' + lineTxt + '</span></div>' + rateNoteHtml();
       saveBtn.disabled = false; saveBtn.style.opacity = '1';
       return;
     }
