@@ -119,6 +119,7 @@
       <div class="legend-item"><span class="dot dot-night"></span><b data-i18n="leg_night">Night</b><span data-i18n="leg_d_night">every hour 150%</span></div>
       <div class="legend-item"><span class="dot dot-friday"></span><b data-i18n="leg_friday">Friday</b><span data-i18n="leg_d_friday">completes 42h/week 100% · +2h 125% · then 150%</span></div>
       <div class="legend-item"><span class="dot dot-vac"></span><b data-i18n="leg_vacation">Vacation</b><span data-i18n="leg_d_vacation">8.6h × wage @ 100%</span></div>
+      <div class="legend-item"><span class="dot dot-sick"></span><b data-i18n="leg_sick">Sick</b><span data-i18n="leg_d_sick">day 1: 0% · 2–3: 50% · 4+: 100% (8.6h)</span></div>
       <div class="legend-foot" data-i18n="leg_foot">Unpaid break removed from the lowest-rate hours: 45 min/day · 15 min on Friday.</div>
     </section>
 
@@ -139,6 +140,7 @@
       <div class="seg" id="mode-seg" role="group" aria-label="Day type">
         <button class="seg-btn" data-mode="work" aria-pressed="true" data-i18n="mode_work">Work shift</button>
         <button class="seg-btn" data-mode="vacation" aria-pressed="false" data-i18n="mode_vacation">Vacation</button>
+        <button class="seg-btn" data-mode="sick" aria-pressed="false" data-i18n="mode_sick">Sick</button>
       </div>
 
       <!-- WORK fields -->
@@ -167,6 +169,9 @@
 
       <!-- VACATION info -->
       <p id="vacation-note" class="info-note" hidden data-i18n-html="vacation_note"><b>Paid vacation</b> — pays 8.6 h × your hourly wage at 100%.</p>
+
+      <!-- SICK info -->
+      <p id="sick-note" class="info-note" hidden data-i18n-html="sick_note"><b>Paid sick leave</b> — by consecutive days: day 1 = 0%, days 2–3 = 50%, day 4+ = 100% of 8.6 h. Mark each sick day in a row.</p>
 
       <label class="field">
         <span class="field-label"><span data-i18n="note">Note</span> <span class="opt" data-i18n="note_opt">(optional)</span></span>

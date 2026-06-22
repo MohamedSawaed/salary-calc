@@ -230,6 +230,18 @@
     return fallbackRate != null ? fallbackRate : state.profile.rate;
   }
 
+  /** Count consecutive sick days immediately BEFORE `key` (so this day's position = result + 1). */
+  function sickStreakBefore(key, shiftsMap) {
+    shiftsMap = shiftsMap || state.shifts;
+    var p = parseKey(key), n = 0;
+    for (var back = 1; back < 370; back++) {
+      var dd = new Date(p.y, p.m, p.d - back);
+      var s = shiftsMap[keyOf(dd.getFullYear(), dd.getMonth(), dd.getDate())];
+      if (s && s.type === 'sick') n++; else break;
+    }
+    return n;
+  }
+
   /** Week-aware pay for one day. `override` supplies unsaved editor inputs.
       `shiftsMap`/`fallbackRate` let it compute over another user's data (admin view). */
   function dayResult(key, override, shiftsMap, fallbackRate) {
@@ -238,6 +250,7 @@
     if (!shift) return null;
     var rate = rateOf(shift, fallbackRate);
     if (shift.type === 'vacation') return SalaryCalc.vacationResult(rate);
+    if (shift.type === 'sick') return SalaryCalc.sickResult(rate, sickStreakBefore(key, shiftsMap) + 1);
     var fri = isFridayKey(key);
     return SalaryCalc.computeDayPay({
       shift: shift, isFriday: fri, rate: rate,
@@ -253,7 +266,7 @@
       var k = keyOf(y, m, d);
       var s = shiftsMap[k]; if (!s) continue;
       var res = dayResult(k, undefined, shiftsMap, fallbackRate);
-      if (res) { pay += res.pay; hours += res.totalHours; count++; if (s.type !== 'vacation') workedDays++; }
+      if (res) { pay += res.pay; hours += res.totalHours; count++; if (s.type !== 'vacation' && s.type !== 'sick') workedDays++; }
     }
     return { pay: pay, hours: hours, count: count, workedDays: workedDays };
   }
@@ -270,7 +283,7 @@
     return sum;
   }
   function setMonthSummary(monthPay, monthHours, monthShifts, workedDays) {
-    var ex = extrasAmount(state.profile.extras, workedDays, monthShifts > 0);
+    var ex = extrasAmount(state.profile.extras, workedDays, workedDays > 0);
     $('month-total').textContent = fmtMoney(monthPay + ex);
     $('month-hours').textContent = fmtHours(monthHours).replace(' ', '');
     $('month-shifts').textContent = monthShifts;
@@ -357,7 +370,7 @@
         monthPay += res.pay;
         monthHours += res.totalHours;
         monthShifts++;
-        if (shift.type !== 'vacation') workedDays++;
+        if (shift.type !== 'vacation' && shift.type !== 'sick') workedDays++;
       }
 
       cell.addEventListener('click', function () { openSheet(this.getAttribute('data-key')); });
@@ -405,13 +418,15 @@
         var meta = SalaryCalc.SHIFT_META[res.type] || SalaryCalc.SHIFT_META.morning;
         if (shift.type === 'vacation') {
           inHtml = '<span class="vac-label">' + t('leg_vacation') + '</span>';
+        } else if (shift.type === 'sick') {
+          inHtml = '<span class="sick-label">' + t('leg_sick') + '</span>';
         } else {
           inHtml = '<i class="t-pill in">' + shift.start + '</i>';
           outHtml = '<i class="t-pill out">' + shift.end + '</i>';
         }
         payHtml = '<b class="pay-num">' + fmtMoney(res.pay, true) + '</b>';
         monthPay += res.pay; monthHours += res.totalHours; monthShifts++;
-        if (shift.type !== 'vacation') workedDays++;
+        if (shift.type !== 'vacation' && shift.type !== 'sick') workedDays++;
       }
       row.innerHTML =
         '<span class="mt-date"><b>' + d + '</b><small>' + localeWeekdayShort(dow) + '</small></span>' +
@@ -425,7 +440,7 @@
     // extra payments (travel, etc.)
     var ex = 0;
     (state.profile.extras || []).forEach(function (e) {
-      var amt = (e.per === 'month') ? (monthShifts > 0 ? (Number(e.amount) || 0) : 0) : (Number(e.amount) || 0) * workedDays;
+      var amt = (e.per === 'month') ? (workedDays > 0 ? (Number(e.amount) || 0) : 0) : (Number(e.amount) || 0) * workedDays;
       if (amt <= 0) return;
       ex += amt;
       var er = document.createElement('div');
@@ -482,9 +497,9 @@
       b.classList.toggle('active', on);
       b.setAttribute('aria-pressed', on ? 'true' : 'false');
     });
-    var vac = mode === 'vacation';
-    $('work-fields').hidden = vac;
-    $('vacation-note').hidden = !vac;
+    $('work-fields').hidden = (mode !== 'work');
+    $('vacation-note').hidden = (mode !== 'vacation');
+    $('sick-note').hidden = (mode !== 'sick');
     if (!skip) renderPreview();
   }
 
@@ -505,10 +520,10 @@
     editRate = (existing && existing.rate != null) ? existing.rate : state.profile.rate;
     $('sheet-date').textContent = prettyDate(key);
 
-    var isVac = !!(existing && existing.type === 'vacation');
-    setMode(isVac ? 'vacation' : 'work', true);
+    var exMode = existing ? (existing.type === 'vacation' ? 'vacation' : (existing.type === 'sick' ? 'sick' : 'work')) : 'work';
+    setMode(exMode, true);
 
-    if (existing && !isVac) {
+    if (existing && exMode === 'work') {
       $('in-start').value = existing.start;
       $('in-end').value = existing.end;
       var et = existing.type;
@@ -535,7 +550,7 @@
   }
 
   function isValidDuration(inp) {
-    if (editMode === 'vacation') return true;
+    if (editMode === 'vacation' || editMode === 'sick') return true;
     return inp.start !== inp.end; // equal -> ambiguous (0 or 24h); ask user to fix
   }
 
@@ -561,9 +576,24 @@
       $('prev-pay').textContent = fmtMoney(vr.pay);
       bars.innerHTML = '<i class="seg-100" style="width:100%"></i>';
       rows.innerHTML =
-        '<div class="prev-vac"><span class="vac-emoji">🏖️</span>' +
-        '<span class="vac-line">' + t('vac_line', { h: SalaryCalc.VACATION_HOURS, rate: fmtMoney(rate) }) +
+        '<div class="prev-vac"><span class="vac-line">' +
+        t('vac_line', { h: SalaryCalc.VACATION_HOURS, rate: fmtMoney(rate) }) +
         '</span></div>' + rateNoteHtml();
+      saveBtn.disabled = false; saveBtn.style.opacity = '1';
+      return;
+    }
+
+    // ----- sick (consecutive tiers) -----
+    if (editMode === 'sick') {
+      var pos = sickStreakBefore(editKey, state.shifts) + 1;
+      var sr = SalaryCalc.sickResult(rate, pos);
+      var pctTxt = Math.round(sr.sickPct * 100) + '%';
+      $('prev-type').innerHTML = '<span class="dot dot-sick"></span>' + t('prev_sick');
+      $('prev-pay').textContent = fmtMoney(sr.pay);
+      bars.innerHTML = sr.sickPct > 0 ? '<i class="seg-100" style="width:' + (sr.sickPct * 100) + '%"></i>' : '';
+      rows.innerHTML =
+        '<div class="prev-vac"><span class="vac-line">' +
+        t('sick_day_n', { n: pos, pct: pctTxt }) + '</span></div>' + rateNoteHtml();
       saveBtn.disabled = false; saveBtn.style.opacity = '1';
       return;
     }
@@ -668,6 +698,8 @@
     if (!state.profile.rate) { toast(t('t_need_wage2')); return; }
     if (editMode === 'vacation') {
       state.shifts[editKey] = { type: 'vacation', note: $('in-note').value.trim(), rate: editRate };
+    } else if (editMode === 'sick') {
+      state.shifts[editKey] = { type: 'sick', note: $('in-note').value.trim(), rate: editRate };
     } else {
       var inp = currentInputs();
       if (!isValidDuration(inp)) { toast(t('t_same')); return; }
@@ -970,7 +1002,7 @@
     users.forEach(function (u) {
       var cur = u.currency || '₪';
       var tot = totalsFor(u.shifts || {}, y, m, u.hourlyWage);
-      var totalPay = tot.pay + extrasAmount(u.extras, tot.workedDays, tot.count > 0);
+      var totalPay = tot.pay + extrasAmount(u.extras, tot.workedDays, tot.workedDays > 0);
       var allShifts = Object.keys(u.shifts || {}).length;
       var row = document.createElement('div');
       row.className = 'admin-row';
@@ -999,7 +1031,7 @@
       var typeName = t('leg_' + res.type);
       var brk = Math.round((res.grossHours - res.paidHours) * 60);
       var isVac = s.type === 'vacation';
-      if (!isVac) workedDays++;
+      if (!isVac && s.type !== 'sick') workedDays++;
       rows.push([k, wd, typeName, isVac ? '' : (s.start || ''), isVac ? '' : (s.end || ''),
         res.grossHours, brk, res.paidHours, res.hours['100'], res.hours['125'], res.hours['150'], res.pay]);
       tot.gross += res.grossHours; tot.brk += brk; tot.paid += res.paidHours;
@@ -1010,7 +1042,7 @@
     // extra payments (travel, etc.) as their own lines, added to the grand total
     var extraLines = [], extrasSum = 0;
     (state.profile.extras || []).forEach(function (e) {
-      var amt = (e.per === 'month') ? (Number(e.amount) || 0) : (Number(e.amount) || 0) * workedDays;
+      var amt = (e.per === 'month') ? (workedDays > 0 ? (Number(e.amount) || 0) : 0) : (Number(e.amount) || 0) * workedDays;
       if (amt <= 0) return;
       extrasSum += amt;
       extraLines.push([e.name || t('ex_label'), '', '', '', '', '', '', '', '', '', '', amt]);

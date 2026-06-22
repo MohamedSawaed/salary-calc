@@ -203,6 +203,7 @@ input[type="time"] { min-height: 52px; font-variant-numeric: tabular-nums; }
 .dot-night { background: var(--night); }
 .dot-friday { background: var(--friday); }
 .dot-vac { background: var(--money); }
+.dot-sick { background: #e5484d; }
 
 /* ============ HERO / SUMMARY ============ */
 .hero {
@@ -383,6 +384,7 @@ main#app { padding-bottom: calc(var(--safe-bot) + 82px); }
 .preview-top { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 14px; gap: 10px; }
 .prev-type { font-size: 13px; font-weight: 600; color: var(--dim); display: inline-flex; align-items: center; gap: 7px; }
 .vac-label { color: var(--money); font-weight: 600; font-size: 12px; }
+.sick-label { color: var(--danger); font-weight: 600; font-size: 12px; }
 .prev-pay { font-size: 27px; font-weight: 600; color: var(--ink); letter-spacing: -.8px; font-variant-numeric: tabular-nums; }
 .prev-bars { display: flex; height: 6px; border-radius: 4px; overflow: hidden; background: var(--line); margin-bottom: 14px; }
 .prev-bars i { display: block; height: 100%; }

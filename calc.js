@@ -40,7 +40,8 @@
     evening:  { label: 'Evening',  emoji: '🌆', accent: '#6366f1' },
     night:    { label: 'Night',    emoji: '🌙', accent: '#8b5cf6' },
     friday:   { label: 'Friday',   emoji: '🕯️', accent: '#0ea5e9' },
-    vacation: { label: 'Vacation', emoji: '🏖️', accent: '#10b981' }
+    vacation: { label: 'Vacation', emoji: '🏖️', accent: '#10b981' },
+    sick:     { label: 'Sick',     emoji: '🤒', accent: '#e5484d' }
   };
 
   var MINUTES_PER_DAY = 24 * 60;
@@ -231,6 +232,28 @@
     return t.mins[100] + t.mins[125] + t.mins[150];
   }
 
+  /**
+   * Paid sick day, by position in a run of CONSECUTIVE sick days:
+   *   day 1     -> 0%
+   *   days 2-3  -> 50%
+   *   day 4+    -> 100%
+   * of 8.6h x rate.
+   */
+  function sickResult(rate, streakPos) {
+    var r = Number(rate) || 0;
+    var pct = streakPos <= 1 ? 0 : (streakPos <= 3 ? 0.5 : 1);
+    var paid = VACATION_HOURS * pct;
+    return {
+      type: 'sick', kind: 'sick',
+      grossHours: VACATION_HOURS, paidHours: round2(paid), totalHours: round2(paid),
+      paidMinutes: Math.round(paid * 60),
+      hours: { '100': round2(paid), '125': 0, '150': 0 },
+      pay: round2(r * VACATION_HOURS * pct),
+      basePay: round2(r * VACATION_HOURS * pct), extraPay: 0,
+      sickPct: pct, sickPos: streakPos
+    };
+  }
+
   /** Paid vacation day: 8.6h x rate x 100%. */
   function vacationResult(rate) {
     var r = Number(rate) || 0;
@@ -284,6 +307,7 @@
     computeFriday: computeFriday,
     paidMinutesForWorkedDay: paidMinutesForWorkedDay,
     vacationResult: vacationResult,
+    sickResult: sickResult,
     computeDayPay: computeDayPay
   };
 
