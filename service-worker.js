@@ -1,5 +1,5 @@
-/* ShiftPay service worker — offline-first app shell. */
-var CACHE = 'shiftpay-v21';
+/* ShiftPay service worker — network-first (always fresh when online, cache fallback offline). */
+var CACHE = 'shiftpay-v22';
 var ASSETS = [
   './',
   './index.html',
@@ -35,19 +35,21 @@ self.addEventListener('activate', function (e) {
 
 self.addEventListener('fetch', function (e) {
   if (e.request.method !== 'GET') return;
+  // Only handle our own origin; let Firebase / other hosts go straight to the network.
+  if (e.request.url.indexOf(self.location.origin) !== 0) return;
+  // Network-first: always try the latest, refresh the cache, fall back to cache when offline.
   e.respondWith(
-    caches.match(e.request).then(function (cached) {
-      if (cached) return cached;
-      return fetch(e.request).then(function (res) {
-        // cache same-origin successful responses for next time
-        if (res && res.status === 200 && e.request.url.indexOf(self.location.origin) === 0) {
-          var clone = res.clone();
-          caches.open(CACHE).then(function (c) { c.put(e.request, clone); });
-        }
-        return res;
-      }).catch(function () {
-        // offline fallback to app shell for navigations
+    fetch(e.request).then(function (res) {
+      if (res && res.status === 200) {
+        var clone = res.clone();
+        caches.open(CACHE).then(function (c) { c.put(e.request, clone); });
+      }
+      return res;
+    }).catch(function () {
+      return caches.match(e.request).then(function (cached) {
+        if (cached) return cached;
         if (e.request.mode === 'navigate') return caches.match('./index.html');
+        return Response.error();
       });
     })
   );
