@@ -45,6 +45,7 @@
   // Older shifts had no rate of their own. Freeze them at the current wage once,
   // so a later wage change won't retroactively rewrite past months.
   function migrate() {
+    if (!Array.isArray(state.profile.extras)) state.profile.extras = [];
     var changed = false;
     Object.keys(state.shifts).forEach(function (k) {
       var s = state.shifts[k];
@@ -244,17 +245,58 @@
     });
   }
 
-  /** Month totals (pay/hours/shift-count) for an arbitrary shifts map. */
+  /** Month totals (pay/hours/shift-count/worked-days) for an arbitrary shifts map. */
   function totalsFor(shiftsMap, y, m, fallbackRate) {
-    var pay = 0, hours = 0, count = 0;
+    var pay = 0, hours = 0, count = 0, workedDays = 0;
     var dim = new Date(y, m + 1, 0).getDate();
     for (var d = 1; d <= dim; d++) {
       var k = keyOf(y, m, d);
-      if (!shiftsMap[k]) continue;
+      var s = shiftsMap[k]; if (!s) continue;
       var res = dayResult(k, undefined, shiftsMap, fallbackRate);
-      if (res) { pay += res.pay; hours += res.totalHours; count++; }
+      if (res) { pay += res.pay; hours += res.totalHours; count++; if (s.type !== 'vacation') workedDays++; }
     }
-    return { pay: pay, hours: hours, count: count };
+    return { pay: pay, hours: hours, count: count, workedDays: workedDays };
+  }
+
+  /* ---------------- extra payments (travel, allowances) ---------------- */
+  function extrasAmount(extras, workedDays, hasEntries) {
+    if (!extras || !extras.length) return 0;
+    var sum = 0;
+    extras.forEach(function (e) {
+      var amt = Number(e.amount) || 0;
+      if (e.per === 'month') { if (hasEntries) sum += amt; }
+      else sum += amt * workedDays; // default 'day' (per worked day)
+    });
+    return sum;
+  }
+  function setMonthSummary(monthPay, monthHours, monthShifts, workedDays) {
+    var ex = extrasAmount(state.profile.extras, workedDays, monthShifts > 0);
+    $('month-total').textContent = fmtMoney(monthPay + ex);
+    $('month-hours').textContent = fmtHours(monthHours).replace(' ', '');
+    $('month-shifts').textContent = monthShifts;
+    return ex;
+  }
+  function renderExtras() {
+    var box = $('extras-list'); if (!box) return;
+    box.innerHTML = '';
+    (state.profile.extras || []).forEach(function (e, i) {
+      var row = document.createElement('div');
+      row.className = 'extra-row';
+      row.innerHTML =
+        '<input class="ex-name" data-i="' + i + '" type="text" maxlength="30" placeholder="' + esc(t('ex_name_ph')) + '" value="' + esc(e.name || '') + '" />' +
+        '<input class="ex-amt" data-i="' + i + '" type="number" inputmode="decimal" min="0" step="0.01" value="' + (e.amount != null ? e.amount : '') + '" />' +
+        '<select class="ex-per" data-i="' + i + '" aria-label="per">' +
+          '<option value="day"' + (e.per !== 'month' ? ' selected' : '') + '>' + t('ex_per_day') + '</option>' +
+          '<option value="month"' + (e.per === 'month' ? ' selected' : '') + '>' + t('ex_per_month') + '</option>' +
+        '</select>' +
+        '<button class="ex-del" data-i="' + i + '" aria-label="remove">✕</button>';
+      box.appendChild(row);
+    });
+  }
+  function addExtra() {
+    if (!Array.isArray(state.profile.extras)) state.profile.extras = [];
+    state.profile.extras.push({ name: '', amount: 0, per: 'day' });
+    save(); renderExtras();
   }
 
   function renderCalendar() {
@@ -274,7 +316,7 @@
       cal.appendChild(blank);
     }
 
-    var monthPay = 0, monthHours = 0, monthShifts = 0;
+    var monthPay = 0, monthHours = 0, monthShifts = 0, workedDays = 0;
 
     for (var d = 1; d <= daysInMonth; d++) {
       var k = keyOf(view.y, view.m, d);
@@ -315,16 +357,14 @@
         monthPay += res.pay;
         monthHours += res.totalHours;
         monthShifts++;
+        if (shift.type !== 'vacation') workedDays++;
       }
 
       cell.addEventListener('click', function () { openSheet(this.getAttribute('data-key')); });
       cal.appendChild(cell);
     }
 
-    // summary
-    $('month-total').textContent = fmtMoney(monthPay);
-    $('month-hours').textContent = fmtHours(monthHours).replace(' ', '');
-    $('month-shifts').textContent = monthShifts;
+    setMonthSummary(monthPay, monthHours, monthShifts, workedDays);
     $('empty-hint').hidden = monthShifts !== 0;
   }
 
@@ -344,7 +384,7 @@
 
     var daysInMonth = new Date(view.y, view.m + 1, 0).getDate();
     var tKey = todayKey();
-    var monthPay = 0, monthHours = 0, monthShifts = 0;
+    var monthPay = 0, monthHours = 0, monthShifts = 0, workedDays = 0;
 
     for (var d = 1; d <= daysInMonth; d++) {
       var k = keyOf(view.y, view.m, d);
@@ -371,6 +411,7 @@
         }
         payHtml = '<b class="pay-num">' + fmtMoney(res.pay, true) + '</b>';
         monthPay += res.pay; monthHours += res.totalHours; monthShifts++;
+        if (shift.type !== 'vacation') workedDays++;
       }
       row.innerHTML =
         '<span class="mt-date"><b>' + d + '</b><small>' + localeWeekdayShort(dow) + '</small></span>' +
@@ -381,17 +422,28 @@
       tbl.appendChild(row);
     }
 
+    // extra payments (travel, etc.)
+    var ex = 0;
+    (state.profile.extras || []).forEach(function (e) {
+      var amt = (e.per === 'month') ? (monthShifts > 0 ? (Number(e.amount) || 0) : 0) : (Number(e.amount) || 0) * workedDays;
+      if (amt <= 0) return;
+      ex += amt;
+      var er = document.createElement('div');
+      er.className = 'mt-row mt-extra';
+      er.innerHTML = '<span class="mt-exname">' + esc(e.name || t('ex_label')) + '</span>' +
+        '<span class="mt-pay"><b>' + fmtMoney(amt, true) + '</b></span>';
+      tbl.appendChild(er);
+    });
+
     var tot = document.createElement('div');
     tot.className = 'mt-row mt-total';
     tot.innerHTML =
       '<span class="mt-date">' + t('tbl_total') + '</span>' +
       '<span class="mt-cell"></span><span class="mt-cell"></span>' +
-      '<span class="mt-pay"><b>' + fmtMoney(monthPay) + '</b></span>';
+      '<span class="mt-pay"><b>' + fmtMoney(monthPay + ex) + '</b></span>';
     tbl.appendChild(tot);
 
-    $('month-total').textContent = fmtMoney(monthPay);
-    $('month-hours').textContent = fmtHours(monthHours).replace(' ', '');
-    $('month-shifts').textContent = monthShifts;
+    setMonthSummary(monthPay, monthHours, monthShifts, workedDays);
     $('empty-hint').hidden = true;
   }
 
@@ -662,6 +714,7 @@
       b.setAttribute('aria-pressed', on ? 'true' : 'false');
     });
     updateAccountUI();
+    renderExtras();
     openSheetEl('settings', 'set-backdrop');
   }
   function saveSettings() {
@@ -781,7 +834,7 @@
   function cloudPayload() {
     return {
       name: state.profile.name, hourlyWage: state.profile.rate, currency: state.profile.currency,
-      email: auth ? auth.email : '', shifts: state.shifts
+      email: auth ? auth.email : '', extras: state.profile.extras || [], shifts: state.shifts
     };
   }
   function setSync(key) { var el = $('acc-sync'); if (el) el.textContent = key ? t(key) : ''; }
@@ -803,7 +856,8 @@
     state.profile = {
       name: data.name || '',
       rate: (data.hourlyWage != null ? data.hourlyWage : 0),
-      currency: data.currency || '₪'
+      currency: data.currency || '₪',
+      extras: Array.isArray(data.extras) ? data.extras : []
     };
     state.shifts = (data.shifts && typeof data.shifts === 'object') ? data.shifts : {};
     var prev = pulling; pulling = true; // don't echo the just-pulled data back to the cloud
@@ -916,6 +970,7 @@
     users.forEach(function (u) {
       var cur = u.currency || '₪';
       var tot = totalsFor(u.shifts || {}, y, m, u.hourlyWage);
+      var totalPay = tot.pay + extrasAmount(u.extras, tot.workedDays, tot.count > 0);
       var allShifts = Object.keys(u.shifts || {}).length;
       var row = document.createElement('div');
       row.className = 'admin-row';
@@ -924,7 +979,7 @@
         '<span class="admin-wage">' + cur + fmtNum(u.hourlyWage || 0) + '/' + t('u_h') + '</span></div>' +
         '<div class="admin-email">' + esc(u.email || u.uid) + '</div>' +
         '<div class="admin-stats"><span>' + allShifts + ' ' + t('stat_shifts') + '</span>' +
-        '<span>' + t('admin_month') + ': ' + fmtHours(tot.hours) + ' · ' + cur + fmtNum(Math.round(tot.pay)) + '</span></div>';
+        '<span>' + t('admin_month') + ': ' + fmtHours(tot.hours) + ' · ' + cur + fmtNum(Math.round(totalPay)) + '</span></div>';
       list.appendChild(row);
     });
   }
@@ -933,6 +988,7 @@
   function exportMonthCSV() {
     var rows = [];
     var tot = { gross: 0, brk: 0, paid: 0, h100: 0, h125: 0, h150: 0, pay: 0 };
+    var workedDays = 0;
     var daysInMonth = new Date(view.y, view.m + 1, 0).getDate();
     for (var d = 1; d <= daysInMonth; d++) {
       var k = keyOf(view.y, view.m, d);
@@ -943,12 +999,22 @@
       var typeName = t('leg_' + res.type);
       var brk = Math.round((res.grossHours - res.paidHours) * 60);
       var isVac = s.type === 'vacation';
+      if (!isVac) workedDays++;
       rows.push([k, wd, typeName, isVac ? '' : (s.start || ''), isVac ? '' : (s.end || ''),
         res.grossHours, brk, res.paidHours, res.hours['100'], res.hours['125'], res.hours['150'], res.pay]);
       tot.gross += res.grossHours; tot.brk += brk; tot.paid += res.paidHours;
       tot.h100 += res.hours['100']; tot.h125 += res.hours['125']; tot.h150 += res.hours['150']; tot.pay += res.pay;
     }
     if (!rows.length) { toast(t('t_nodata')); return; }
+
+    // extra payments (travel, etc.) as their own lines, added to the grand total
+    var extraLines = [], extrasSum = 0;
+    (state.profile.extras || []).forEach(function (e) {
+      var amt = (e.per === 'month') ? (Number(e.amount) || 0) : (Number(e.amount) || 0) * workedDays;
+      if (amt <= 0) return;
+      extrasSum += amt;
+      extraLines.push([e.name || t('ex_label'), '', '', '', '', '', '', '', '', '', '', amt]);
+    });
 
     var r2 = SalaryCalc.round2;
     function esc(v) { v = String(v); return /[",\n;]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }
@@ -962,8 +1028,11 @@
     rows.forEach(function (r) {
       lines.push(r.map(function (c, i) { return esc(i >= 5 ? r2(c) : c); }).join(','));
     });
+    extraLines.forEach(function (r) {
+      lines.push(r.map(function (c, i) { return esc(i === 11 ? r2(c) : c); }).join(','));
+    });
     lines.push([t('csv_total'), '', '', '', '', r2(tot.gross), Math.round(tot.brk), r2(tot.paid),
-      r2(tot.h100), r2(tot.h125), r2(tot.h150), r2(tot.pay)].map(esc).join(','));
+      r2(tot.h100), r2(tot.h125), r2(tot.h150), r2(tot.pay + extrasSum)].map(esc).join(','));
     lines.push([t('csv_share'), '', '', '', '', '', '', '100%',
       pct(tot.h100, tot.paid), pct(tot.h125, tot.paid), pct(tot.h150, tot.paid), ''].map(esc).join(','));
 
@@ -988,7 +1057,7 @@
     var cur = $('onb-currency').value.trim() || '₪';
     if (!name) { toast(t('t_name')); return; }
     if (!(rate >= 0) || isNaN(rate)) { toast(t('t_wage')); return; }
-    state.profile = { name: name, rate: rate, currency: cur };
+    state.profile = { name: name, rate: rate, currency: cur, extras: state.profile.extras || [] };
     save();
     showApp();
   }
@@ -1038,6 +1107,23 @@
     $('set-backdrop').addEventListener('click', function () { closeSheetEl('settings', 'set-backdrop'); });
     $('set-save').addEventListener('click', saveSettings);
     $('btn-export-csv').addEventListener('click', exportMonthCSV);
+    $('btn-add-extra').addEventListener('click', addExtra);
+    // extras editor (event delegation)
+    $('extras-list').addEventListener('input', function (e) {
+      var el = e.target, i = +el.getAttribute('data-i'); if (isNaN(i) || !state.profile.extras[i]) return;
+      if (el.classList.contains('ex-name')) state.profile.extras[i].name = el.value;
+      else if (el.classList.contains('ex-amt')) state.profile.extras[i].amount = parseFloat(el.value) || 0;
+      save(); if (!$('app').hidden) renderView();
+    });
+    $('extras-list').addEventListener('change', function (e) {
+      var el = e.target, i = +el.getAttribute('data-i'); if (isNaN(i) || !state.profile.extras[i]) return;
+      if (el.classList.contains('ex-per')) { state.profile.extras[i].per = el.value; save(); if (!$('app').hidden) renderView(); }
+    });
+    $('extras-list').addEventListener('click', function (e) {
+      var el = e.target.closest('.ex-del'); if (!el) return;
+      var i = +el.getAttribute('data-i'); if (isNaN(i)) return;
+      state.profile.extras.splice(i, 1); save(); renderExtras(); if (!$('app').hidden) renderView();
+    });
     $('btn-backup').addEventListener('click', exportData);
     $('btn-restore').addEventListener('click', function () { $('restore-file').value = ''; $('restore-file').click(); });
     $('restore-file').addEventListener('change', onRestoreFile);

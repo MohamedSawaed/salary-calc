@@ -97,6 +97,7 @@
       hourlyWage: toFs(obj.hourlyWage || 0),
       currency: toFs(obj.currency || ''),
       email: toFs(obj.email || ''),
+      extras: toFs(obj.extras || []),
       updatedAt: { timestampValue: new Date().toISOString() },
       shifts: toFs(obj.shifts || {})
     };

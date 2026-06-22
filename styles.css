@@ -300,6 +300,21 @@ button.mt-row:hover { background: var(--bg); }
 .mt-sat .mt-date small { color: var(--money); font-weight: 700; }
 .mt-total { font-weight: 650; background: var(--bg); border-top: 1px solid var(--line-2); cursor: default; }
 .mt-total .mt-pay b { color: var(--money); font-size: 14.5px; font-variant-numeric: tabular-nums; }
+.mt-extra { display: flex; justify-content: space-between; align-items: center; cursor: default; }
+.mt-extra .mt-exname { color: var(--dim); font-weight: 600; }
+.mt-extra .mt-pay { color: var(--money); font-variant-numeric: tabular-nums; }
+
+/* extra-payments editor (settings) */
+#extras-list { display: flex; flex-direction: column; gap: 8px; margin: 2px 0 4px; }
+.extra-row { display: grid; grid-template-columns: 1fr 62px minmax(0, auto) 32px; gap: 6px; align-items: center; }
+.extra-row input, .extra-row select {
+  padding: 10px 9px; font-size: 14px; border: 1px solid var(--line-2); border-radius: var(--r-xs);
+  background: var(--card); color: var(--ink); width: 100%;
+}
+.extra-row .ex-amt { text-align: center; font-variant-numeric: tabular-nums; }
+.extra-row .ex-per { min-width: 0; max-width: 120px; font-size: 12.5px; padding: 10px 4px; }
+.ex-del { height: 38px; border-radius: var(--r-xs); color: var(--danger); font-size: 14px; background: transparent; }
+.ex-del:active { background: color-mix(in srgb, var(--danger) 10%, transparent); }
 
 /* ============ LEGEND ============ */
 .legend {
