@@ -16,7 +16,9 @@
   --accent-ink: #4f46e5;
   --accent-soft: rgba(79, 70, 229, .08);
   --money: #0f9d6b;
+  --money-soft: rgba(15, 157, 107, .12);
   --danger: #e5484d;
+  --danger-soft: rgba(229, 72, 77, .10);
 
   --morning: #d99323;
   --evening: #4f46e5;
@@ -33,6 +35,8 @@
   --ease: cubic-bezier(.22,.61,.36,1);
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bot: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
 }
 
 html[data-theme="dark"] {
@@ -49,13 +53,16 @@ html[data-theme="dark"] {
   --accent-ink: #aaa6ff;
   --accent-soft: rgba(139, 135, 245, .14);
   --money: #35d399;
+  --money-soft: rgba(53, 211, 153, .15);
   --danger: #ff6166;
+  --danger-soft: rgba(255, 97, 102, .15);
   --friday: #6aa0ff;
   --shadow: 0 1px 2px rgba(0,0,0,.3), 0 16px 36px -22px rgba(0,0,0,.7);
   --shadow-sheet: 0 -1px 0 var(--line), 0 -22px 54px -26px rgba(0,0,0,.7);
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 html, body { margin: 0; padding: 0; height: 100%; }
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", Roboto, Helvetica, Arial, sans-serif;
@@ -67,7 +74,15 @@ body {
   text-rendering: optimizeLegibility;
   font-feature-settings: "cv05", "ss01";
   overscroll-behavior-y: none;
+  /* keep content clear of the notch/curved corners in landscape */
+  padding-left: var(--safe-left);
+  padding-right: var(--safe-right);
+  /* native-app feel: no long-press callout / accidental text selection */
+  -webkit-user-select: none; user-select: none;
+  -webkit-touch-callout: none;
 }
+/* but inputs and editable fields must stay selectable/typable */
+input, textarea, select, [contenteditable] { -webkit-user-select: text; user-select: text; }
 .screen { max-width: 480px; margin: 0 auto; min-height: 100%; }
 [hidden] { display: none !important; }
 b, strong { font-weight: 650; }
@@ -95,7 +110,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   background: transparent; border: 1px solid transparent; color: var(--danger);
   font-weight: 600; font-size: 14.5px; padding: 13px 16px; border-radius: var(--r-sm);
 }
-.btn-ghost-danger:active { background: color-mix(in srgb, var(--danger) 9%, transparent); }
+.btn-ghost-danger:active { background: var(--danger-soft); }
 
 .icon-btn {
   width: 40px; height: 40px; border-radius: var(--pill);
@@ -128,7 +143,8 @@ input[type="time"] { min-height: 52px; font-variant-numeric: tabular-nums; }
 /* ============ LANGUAGE SELECT (first entrance) ============ */
 .lang-screen {
   display: flex; flex-direction: column; justify-content: center; gap: 40px;
-  padding: calc(var(--safe-top) + 24px) 26px calc(var(--safe-bot) + 32px); min-height: 100dvh;
+  padding: calc(var(--safe-top) + 24px) 26px calc(var(--safe-bot) + 32px);
+  min-height: 100vh; min-height: 100dvh;
 }
 .lang-hero { text-align: center; }
 .lang-screen .onb-logo { width: 66px; height: 66px; margin-bottom: 20px; }
@@ -168,7 +184,8 @@ input[type="time"] { min-height: 52px; font-variant-numeric: tabular-nums; }
 /* ============ ONBOARDING ============ */
 .onboarding {
   display: flex; flex-direction: column; justify-content: center; gap: 28px;
-  padding: calc(var(--safe-top) + 12px) 24px calc(var(--safe-bot) + 26px); min-height: 100dvh;
+  padding: calc(var(--safe-top) + 12px) 24px calc(var(--safe-bot) + 26px);
+  min-height: 100vh; min-height: 100dvh;
 }
 .onb-hero { text-align: center; }
 .onb-logo {
@@ -292,7 +309,7 @@ button.mt-row:hover { background: var(--bg); }
   background: var(--bg); border: 1px solid var(--line);
 }
 .t-pill.out { color: var(--dim); }
-.t-pill.vac { background: color-mix(in srgb, var(--money) 12%, transparent); border-color: transparent; }
+.t-pill.vac { background: var(--money-soft); border-color: transparent; }
 .mt-pay .pay-num { color: var(--money); font-weight: 650; font-variant-numeric: tabular-nums; }
 .mt-row .muted { color: var(--faint); }
 .mt-today { background: var(--accent-soft); }
@@ -307,15 +324,21 @@ button.mt-row:hover { background: var(--bg); }
 
 /* extra-payments editor (settings) */
 #extras-list { display: flex; flex-direction: column; gap: 8px; margin: 2px 0 4px; }
-.extra-row { display: grid; grid-template-columns: 1fr 62px minmax(0, auto) 32px; gap: 6px; align-items: center; }
+/* name on its own full-width line, then amount + per + delete underneath —
+   fits a 320px iPhone SE without cramping and keeps every field tappable */
+.extra-row {
+  display: grid; grid-template-columns: 1fr minmax(92px, auto) 40px;
+  gap: 8px; align-items: center;
+}
+.extra-row .ex-name { grid-column: 1 / -1; }
 .extra-row input, .extra-row select {
-  padding: 10px 9px; font-size: 14px; border: 1px solid var(--line-2); border-radius: var(--r-xs);
-  background: var(--card); color: var(--ink); width: 100%;
+  padding: 12px 11px; font-size: 16px; border: 1px solid var(--line-2); border-radius: var(--r-xs);
+  background: var(--card); color: var(--ink); width: 100%; min-width: 0;
 }
 .extra-row .ex-amt { text-align: center; font-variant-numeric: tabular-nums; }
-.extra-row .ex-per { min-width: 0; max-width: 120px; font-size: 12.5px; padding: 10px 4px; }
-.ex-del { height: 38px; border-radius: var(--r-xs); color: var(--danger); font-size: 14px; background: transparent; }
-.ex-del:active { background: color-mix(in srgb, var(--danger) 10%, transparent); }
+.extra-row .ex-per { padding: 12px 8px; }
+.ex-del { height: 44px; border-radius: var(--r-xs); color: var(--danger); font-size: 15px; background: transparent; }
+.ex-del:active { background: var(--danger-soft); }
 
 /* ============ LEGEND ============ */
 .legend {
@@ -343,9 +366,10 @@ main#app { padding-bottom: calc(var(--safe-bot) + 82px); }
 .sheet {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; max-width: 480px; margin: 0 auto;
   background: var(--elev); border-radius: 24px 24px 0 0; box-shadow: var(--shadow-sheet);
-  padding: 6px 20px calc(var(--safe-bot) + 20px);
+  padding: 6px calc(20px + var(--safe-right)) calc(var(--safe-bot) + 20px) calc(20px + var(--safe-left));
   transform: translateY(102%); transition: transform .36s var(--ease);
-  max-height: 92dvh; overflow-y: auto;
+  max-height: 92vh; max-height: 92dvh; overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 .sheet.show { transform: translateY(0); }
 .sheet-handle { width: 38px; height: 4px; border-radius: 3px; background: var(--line-2); margin: 8px auto 10px; }
@@ -417,7 +441,7 @@ main#app { padding-bottom: calc(var(--safe-bot) + 82px); }
 .acc-sync { margin: -2px 0 4px; font-size: 12px; color: var(--money); }
 .auth-error {
   margin: 0; font-size: 13px; color: var(--danger);
-  background: color-mix(in srgb, var(--danger) 9%, transparent);
+  background: var(--danger-soft);
   border-radius: var(--r-sm); padding: 10px 12px;
 }
 .link-btn {

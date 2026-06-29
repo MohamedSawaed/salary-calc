@@ -78,6 +78,14 @@
   }
 
   /* ---------------- money / hours ---------------- */
+  // hex (#rrggbb) -> rgba(); avoids CSS color-mix() which old iOS/Android WebView don't support.
+  function hexA(hex, a) {
+    var h = String(hex || '').replace('#', '');
+    if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+    var n = parseInt(h, 16);
+    if (h.length !== 6 || isNaN(n)) return hex;
+    return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
+  }
   function fmtMoney(n, compact) {
     var cur = state.profile.currency || '';
     if (compact) return cur + Math.round(n).toLocaleString('en-US');
@@ -359,7 +367,7 @@
         var meta = SalaryCalc.SHIFT_META[res.type] || SalaryCalc.SHIFT_META.morning;
 
         cell.classList.add('has-shift');
-        cell.style.borderColor = 'color-mix(in srgb, ' + meta.accent + ' 55%, transparent)';
+        cell.style.borderColor = hexA(meta.accent, 0.55);
 
         var tag = document.createElement('span');
         tag.className = 'type-tag';
