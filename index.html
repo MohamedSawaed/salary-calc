@@ -21,7 +21,7 @@
   <!-- ============ LANGUAGE SELECT (first run) ============ -->
   <section id="lang-screen" class="screen lang-screen" hidden>
     <div class="lang-hero">
-      <div class="onb-logo"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 1.8"/></svg></div>
+      <div class="onb-logo"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.4"/><path d="M12 7.6V12l3.1 1.9"/><circle cx="12" cy="12" r="1.05" fill="currentColor" stroke="none"/></svg></div>
       <h1>ShiftPay</h1>
       <p class="lang-title">Language · שפה · اللغة · Язык</p>
     </div>
@@ -31,7 +31,7 @@
   <!-- ============ ONBOARDING ============ -->
   <section id="onboarding" class="screen onboarding" hidden>
     <div class="onb-hero">
-      <div class="onb-logo"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 1.8"/></svg></div>
+      <div class="onb-logo"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.4"/><path d="M12 7.6V12l3.1 1.9"/><circle cx="12" cy="12" r="1.05" fill="currentColor" stroke="none"/></svg></div>
       <h1>ShiftPay</h1>
       <p class="onb-sub" data-i18n="onb_tagline">Track your shifts. Know your pay — to the minute.</p>
     </div>
@@ -200,13 +200,20 @@
   <div id="set-backdrop" class="backdrop" hidden></div>
   <section id="settings" class="sheet" hidden aria-modal="true" role="dialog">
     <div class="sheet-handle"></div>
-    <header class="sheet-head">
-      <h2 data-i18n="set_title">Settings</h2>
+    <header class="sheet-head set-head">
+      <div class="set-brand">
+        <span class="onb-logo set-logo"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.4"/><path d="M12 7.6V12l3.1 1.9"/><circle cx="12" cy="12" r="1.05" fill="currentColor" stroke="none"/></svg></span>
+        <h2 data-i18n="set_title">Settings</h2>
+      </div>
       <button id="set-close" class="icon-btn" aria-label="Close">✕</button>
     </header>
     <div class="sheet-body">
-      <div class="field account-box">
-        <span class="field-label" data-i18n="acc_title">Account</span>
+
+      <section class="set-section">
+        <div class="set-section-head">
+          <span class="set-ico"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18a4 4 0 0 1-.5-7.97A5 5 0 0 1 16 9.2 3.5 3.5 0 0 1 17 18z"/></svg></span>
+          <div class="set-section-title" data-i18n="acc_title">Account</div>
+        </div>
         <div id="acc-signedout">
           <button id="btn-signin" class="btn-ghost btn-block" data-i18n="acc_signin">Sign in / Create account</button>
         </div>
@@ -216,57 +223,83 @@
           <button id="btn-admin" class="btn-ghost btn-block" hidden data-i18n="admin_open">View all users (admin)</button>
           <button id="btn-signout" class="btn-ghost-danger btn-block" data-i18n="acc_signout">Sign out</button>
         </div>
-      </div>
+      </section>
 
-      <label class="field">
-        <span class="field-label" data-i18n="set_name">Name</span>
-        <input id="set-name" type="text" maxlength="40" />
-      </label>
-      <label class="field">
-        <span class="field-label" data-i18n="set_wage">Hourly wage</span>
-        <div class="rate-row">
-          <input id="set-currency" class="cur-input" type="text" maxlength="3" />
-          <input id="set-rate" type="number" inputmode="decimal" min="0" step="0.01" />
-          <span class="rate-suffix">/hr</span>
+      <section class="set-section">
+        <div class="set-section-head">
+          <span class="set-ico"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.2"/><path d="M5.5 19a6.5 6.5 0 0 1 13 0"/></svg></span>
+          <div class="set-section-title" data-i18n="set_sec_profile">Profile</div>
         </div>
-        <span class="field-hint" data-i18n="set_wage_hint">Changing your wage affects only new shifts — past days keep the wage they were saved with.</span>
-      </label>
+        <label class="field">
+          <span class="field-label" data-i18n="set_name">Name</span>
+          <input id="set-name" type="text" maxlength="40" />
+        </label>
+        <label class="field">
+          <span class="field-label" data-i18n="set_wage">Hourly wage</span>
+          <div class="rate-row">
+            <input id="set-currency" class="cur-input" type="text" maxlength="3" />
+            <input id="set-rate" type="number" inputmode="decimal" min="0" step="0.01" />
+            <span class="rate-suffix">/hr</span>
+          </div>
+          <span class="field-hint" data-i18n="set_wage_hint">Changing your wage affects only new shifts — past days keep the wage they were saved with.</span>
+        </label>
+      </section>
 
-      <div class="field">
-        <span class="field-label" data-i18n="ex_title">Extra payments</span>
-        <span class="field-hint" data-i18n="ex_hint">Travel, meals, allowances… added to your monthly total.</span>
+      <section class="set-section">
+        <div class="set-section-head">
+          <span class="set-ico"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 8.2v7.6M8.2 12h7.6"/></svg></span>
+          <div class="set-section-titles">
+            <div class="set-section-title" data-i18n="ex_title">Extra payments</div>
+            <div class="set-section-sub" data-i18n="ex_hint">Travel, meals, allowances… added to your monthly total.</div>
+          </div>
+        </div>
         <div id="extras-list"></div>
         <button id="btn-add-extra" class="btn-ghost" data-i18n="ex_add">+ Add payment</button>
-      </div>
+      </section>
 
-      <div class="field">
-        <span class="field-label" data-i18n="set_lang">Language</span>
-        <div id="lang-seg" class="lang-grid lang-grid-sm"></div>
-      </div>
-
-      <div class="field">
-        <span class="field-label" data-i18n="set_appear">Appearance</span>
-        <div class="seg" id="theme-seg" role="group" aria-label="Theme">
-          <button class="seg-btn" data-theme="system" aria-pressed="false" data-i18n="th_auto">Auto</button>
-          <button class="seg-btn" data-theme="light" aria-pressed="false" data-i18n="th_light">Light</button>
-          <button class="seg-btn" data-theme="dark" aria-pressed="false" data-i18n="th_dark">Dark</button>
+      <section class="set-section">
+        <div class="set-section-head">
+          <span class="set-ico"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h8M16 8h4M4 16h4M12 16h8"/><circle cx="14" cy="8" r="2"/><circle cx="10" cy="16" r="2"/></svg></span>
+          <div class="set-section-title" data-i18n="set_sec_prefs">Preferences</div>
         </div>
-      </div>
+        <div class="field">
+          <span class="field-label" data-i18n="set_lang">Language</span>
+          <div id="lang-seg" class="lang-grid lang-grid-sm"></div>
+        </div>
+        <div class="field">
+          <span class="field-label" data-i18n="set_appear">Appearance</span>
+          <div class="seg" id="theme-seg" role="group" aria-label="Theme">
+            <button class="seg-btn" data-theme="system" aria-pressed="false" data-i18n="th_auto">Auto</button>
+            <button class="seg-btn" data-theme="light" aria-pressed="false" data-i18n="th_light">Light</button>
+            <button class="seg-btn" data-theme="dark" aria-pressed="false" data-i18n="th_dark">Dark</button>
+          </div>
+        </div>
+      </section>
 
       <button id="set-save" class="btn-primary btn-block" data-i18n="set_save">Save changes</button>
 
-      <div class="field">
-        <span class="field-label" data-i18n="set_backup">Cloud backup</span>
+      <section class="set-section">
+        <div class="set-section-head">
+          <span class="set-ico"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18a4 4 0 0 1-.5-7.97A5 5 0 0 1 16 9.2 3.5 3.5 0 0 1 17 18"/><path d="M12 11v6M9.5 13.4 12 11l2.5 2.4"/></svg></span>
+          <div class="set-section-titles">
+            <div class="set-section-title" data-i18n="set_backup">Cloud backup</div>
+            <div class="set-section-sub" data-i18n="backup_hint">Save a copy to Google Drive / iCloud / Files, then load it on any device.</div>
+          </div>
+        </div>
         <button id="btn-backup" class="btn-ghost" data-i18n="backup_save">Back up my data</button>
         <button id="btn-restore" class="btn-ghost" data-i18n="restore_btn">Restore from a backup</button>
         <input id="restore-file" type="file" accept="application/json,.json" hidden />
-        <span class="field-hint" data-i18n="backup_hint">Save a copy to Google Drive / iCloud / Files, then load it on any device.</span>
-      </div>
+      </section>
 
-      <div class="danger-zone">
+      <section class="set-section">
+        <div class="set-section-head">
+          <span class="set-ico"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="7" ry="2.6"/><path d="M5 6v6c0 1.4 3.1 2.6 7 2.6s7-1.2 7-2.6V6M5 12v6c0 1.4 3.1 2.6 7 2.6s7-1.2 7-2.6v-6"/></svg></span>
+          <div class="set-section-title" data-i18n="set_sec_data">Data</div>
+        </div>
         <button id="btn-export-csv" class="btn-ghost" data-i18n="exp_csv">Export this month (CSV)</button>
         <button id="btn-clear" class="btn-ghost-danger btn-block" data-i18n="erase">Erase all data</button>
-      </div>
+      </section>
+
       <p class="version" data-i18n="version">ShiftPay · works offline · data stays on this device</p>
     </div>
   </section>
@@ -274,7 +307,7 @@
   <!-- ============ SIGN IN (required gate screen) ============ -->
   <section id="auth-screen" class="screen onboarding" hidden>
     <div class="onb-hero">
-      <div class="onb-logo"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 1.8"/></svg></div>
+      <div class="onb-logo"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.4"/><path d="M12 7.6V12l3.1 1.9"/><circle cx="12" cy="12" r="1.05" fill="currentColor" stroke="none"/></svg></div>
       <h1>ShiftPay</h1>
       <p class="onb-sub" id="auth-title" data-i18n="auth_do_in">Sign in</p>
     </div>
