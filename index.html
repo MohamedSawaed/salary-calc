@@ -442,7 +442,9 @@
         <input id="auth-pass" type="password" autocomplete="current-password" />
         <span class="field-hint" id="auth-pass-hint" data-i18n="auth_pass_hint" hidden>At least 6 characters.</span>
       </label>
+      <button id="auth-forgot" type="button" class="link-btn" data-i18n="auth_forgot">Forgot password?</button>
       <p id="auth-error" class="auth-error" hidden></p>
+      <p id="auth-reset-sent" class="field-hint" hidden data-i18n="auth_reset_sent">Password reset email sent — check your inbox (and spam folder).</p>
       <button id="auth-submit" class="btn-primary btn-block" data-i18n="auth_do_in">Sign in</button>
       <button id="auth-toggle" class="link-btn" data-i18n="auth_switch_up">New here? Create an account</button>
     </div>
@@ -457,7 +459,32 @@
       <button id="admin-close" class="icon-btn" aria-label="Close">✕</button>
     </header>
     <div class="sheet-body">
-      <div id="admin-list"></div>
+      <div id="admin-list-view">
+        <div id="admin-list"></div>
+      </div>
+      <div id="admin-detail-view" hidden>
+        <button id="admin-back" class="btn-ghost" data-i18n="admin_back">‹ Back to all users</button>
+        <div class="admin-detail-head">
+          <div class="admin-detail-name" id="admin-detail-name"></div>
+          <div class="admin-detail-email" id="admin-detail-email"></div>
+        </div>
+        <div class="month-nav">
+          <button id="admin-prev-month" class="icon-btn ghost" aria-label="Previous month">‹</button>
+          <button id="admin-month-label" class="month-label" aria-label="Jump to today">June 2026</button>
+          <button id="admin-next-month" class="icon-btn ghost" aria-label="Next month">›</button>
+        </div>
+        <div class="summary">
+          <div class="summary-main">
+            <span class="summary-cap" data-i18n="earned">Earned this month</span>
+            <span id="admin-month-total" class="summary-amount">₪0.00</span>
+          </div>
+          <div class="summary-stats">
+            <div class="stat"><span id="admin-month-hours" class="stat-num">0</span><span class="stat-cap" data-i18n="stat_hours">hours</span></div>
+            <div class="stat"><span id="admin-month-shifts" class="stat-num">0</span><span class="stat-cap" data-i18n="stat_shifts">entries</span></div>
+          </div>
+        </div>
+        <div id="admin-month-table" class="month-table"></div>
+      </div>
     </div>
   </section>
 

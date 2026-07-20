@@ -33,6 +33,11 @@
   function signIn(email, password) {
     return jpost(IDP + 'signInWithPassword?key=' + cfg().apiKey, { email: email, password: password, returnSecureToken: true });
   }
+  // Sends a "reset your password" email via Firebase; the user picks a new password
+  // through the link in that email. There is no way to retrieve an existing password.
+  function sendPasswordReset(email) {
+    return jpost(IDP + 'sendOobCode?key=' + cfg().apiKey, { requestType: 'PASSWORD_RESET', email: email });
+  }
   function refresh(refreshToken) {
     return fetch(TKN + '?key=' + cfg().apiKey, {
       method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -131,7 +136,7 @@
       });
   }
 
-  var api = { configured: configured, signUp: signUp, signIn: signIn, refresh: refresh, load: load, save: save, listUsers: listUsers };
+  var api = { configured: configured, signUp: signUp, signIn: signIn, sendPasswordReset: sendPasswordReset, refresh: refresh, load: load, save: save, listUsers: listUsers };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   global.Cloud = api;
 })(typeof window !== 'undefined' ? window : globalThis);

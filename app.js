@@ -43,6 +43,8 @@
   function t(key, vars) { return I18N.t(state.prefs.lang || 'en', key, vars); }
 
   var view = { y: 0, m: 0 };          // currently displayed month
+  var adminView = { y: 0, m: 0 };     // month shown in the admin per-user drill-down
+  var adminSelectedUser = null;       // user object currently open in the admin drill-down
   var editKey = null;                 // date being edited in the sheet
   var editType = 'morning';           // selected shift type in the sheet (concrete; no 'auto')
   var typeAuto = true;                 // type follows the start time until the user picks one
@@ -1066,7 +1068,9 @@
     $('auth-toggle').textContent = t(up ? 'auth_switch_in' : 'auth_switch_up');
     $('auth-pass-hint').hidden = !up;
     $('auth-pass').setAttribute('autocomplete', up ? 'new-password' : 'current-password');
+    $('auth-forgot').hidden = up; // resetting a password only makes sense when signing in
     $('auth-error').hidden = true;
+    $('auth-reset-sent').hidden = true;
   }
   function showAuthScreen() {
     $('lang-screen').hidden = true;
@@ -1074,6 +1078,7 @@
     $('app').hidden = true;
     $('auth-email').value = ''; $('auth-pass').value = '';
     $('auth-error').hidden = true;
+    $('auth-reset-sent').hidden = true;
     setAuthMode('in');
     $('auth-screen').hidden = false;
     setTimeout(function () { try { $('auth-email').focus(); } catch (e) {} }, 200);
@@ -1107,6 +1112,23 @@
     }).then(function () { btn.disabled = false; btn.style.opacity = '1'; });
   }
 
+  // Sends a password-reset email for the address in the email field. There's no way
+  // to recover an existing password (Firebase never stores one retrievably) — this
+  // just lets the user pick a new one via the link in that email.
+  function forgotPassword() {
+    var email = $('auth-email').value.trim();
+    $('auth-error').hidden = true;
+    $('auth-reset-sent').hidden = true;
+    if (!email || email.indexOf('@') < 1) { showAuthErr(t('err_bad_email')); return; }
+    var btn = $('auth-forgot'); btn.disabled = true;
+    Cloud.sendPasswordReset(email).then(function () {
+      $('auth-reset-sent').hidden = false;
+    }).catch(function (e) {
+      var code = (e && e.code) || '';
+      showAuthErr(code.indexOf('EMAIL_NOT_FOUND') >= 0 ? t('err_no_account') : authErrMsg(code));
+    }).then(function () { btn.disabled = false; });
+  }
+
   function doSignOut() {
     clearAuthState();
     state.profile = { name: '', rate: 0, currency: '₪', tax: defaultTax() };
@@ -1126,6 +1148,8 @@
 
   function openAdmin() {
     openSheetEl('admin-sheet', 'admin-backdrop');
+    $('admin-detail-view').hidden = true;
+    $('admin-list-view').hidden = false;
     var list = $('admin-list');
     list.innerHTML = '<p class="admin-msg">' + t('admin_loading') + '</p>';
     $('admin-count').textContent = '';
@@ -1145,7 +1169,7 @@
       var tot = totalsFor(u.shifts || {}, y, m, u.hourlyWage);
       var totalPay = tot.pay + extrasAmount(u.extras, tot.workedDays, tot.workedDays > 0);
       var allShifts = Object.keys(u.shifts || {}).length;
-      var row = document.createElement('div');
+      var row = document.createElement('button');
       row.className = 'admin-row';
       row.innerHTML =
         '<div class="admin-top"><span class="admin-name">' + esc(u.name || '—') + '</span>' +
@@ -1153,8 +1177,113 @@
         '<div class="admin-email">' + esc(u.email || u.uid) + '</div>' +
         '<div class="admin-stats"><span>' + allShifts + ' ' + t('stat_shifts') + '</span>' +
         '<span>' + t('admin_month') + ': ' + fmtHours(tot.hours) + ' · ' + cur + fmtNum(Math.round(totalPay)) + '</span></div>';
+      row.addEventListener('click', function () { openAdminDetail(u); });
       list.appendChild(row);
     });
+  }
+
+  /* ---- admin: per-user month drill-down (read-only) ---- */
+  function fmtMoneyFor(n, cur, compact) {
+    if (compact) return cur + Math.round(n).toLocaleString('en-US');
+    return cur + (Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  function openAdminDetail(user) {
+    adminSelectedUser = user;
+    var now = new Date();
+    adminView = { y: now.getFullYear(), m: now.getMonth() };
+    $('admin-detail-name').textContent = user.name || '—';
+    $('admin-detail-email').textContent = user.email || user.uid;
+    $('admin-list-view').hidden = true;
+    $('admin-detail-view').hidden = false;
+    renderAdminDetail();
+  }
+  function renderAdminDetail() {
+    var user = adminSelectedUser; if (!user) return;
+    var shiftsMap = user.shifts || {};
+    var rate = user.hourlyWage;
+    var cur = user.currency || '₪';
+    var y = adminView.y, m = adminView.m;
+
+    $('admin-month-label').textContent = localeMonthYear(y, m);
+
+    var tbl = $('admin-month-table');
+    tbl.innerHTML = '';
+    var head = document.createElement('div');
+    head.className = 'mt-row mt-head';
+    head.innerHTML =
+      '<span class="mt-date">' + t('col_date') + '</span>' +
+      '<span class="mt-cell">' + t('col_in') + '</span>' +
+      '<span class="mt-cell">' + t('col_out') + '</span>' +
+      '<span class="mt-pay">' + t('col_pay') + '</span>';
+    tbl.appendChild(head);
+
+    var daysInMonth = new Date(y, m + 1, 0).getDate();
+    var tKey = todayKey();
+    var monthPay = 0, monthHours = 0, monthShifts = 0, workedDays = 0;
+
+    for (var d = 1; d <= daysInMonth; d++) {
+      var k = keyOf(y, m, d);
+      var dow = new Date(y, m, d).getDay();
+      var row = document.createElement('div');
+      row.className = 'mt-row';
+      if (k === tKey) row.classList.add('mt-today');
+      if (dow === 5) row.classList.add('mt-fri');
+      if (dow === 6) row.classList.add('mt-sat');
+
+      var shift = shiftsMap[k];
+      var inHtml = '<span class="muted">—</span>';
+      var outHtml = '<span class="muted">—</span>';
+      var payHtml = '<span class="muted">—</span>';
+      if (shift) {
+        var res = dayResult(k, undefined, shiftsMap, rate);
+        if (shift.type === 'vacation') {
+          inHtml = '<span class="vac-label">' + t('leg_vacation') + '</span>';
+        } else if (shift.type === 'sick') {
+          inHtml = '<span class="sick-label">' + t('leg_sick') + '</span>';
+        } else {
+          inHtml = '<i class="t-pill in">' + shift.start + '</i>';
+          outHtml = '<i class="t-pill out">' + shift.end + '</i>';
+        }
+        payHtml = '<b class="pay-num">' + fmtMoneyFor(res.pay, cur, true) + '</b>';
+        monthPay += res.pay; monthHours += res.totalHours; monthShifts++;
+        if (shift.type !== 'vacation' && shift.type !== 'sick') workedDays++;
+      }
+      row.innerHTML =
+        '<span class="mt-date"><b>' + d + '</b><small>' + localeWeekdayShort(dow) + '</small></span>' +
+        '<span class="mt-cell">' + inHtml + '</span>' +
+        '<span class="mt-cell">' + outHtml + '</span>' +
+        '<span class="mt-pay">' + payHtml + '</span>';
+      tbl.appendChild(row);
+    }
+
+    var ex = 0;
+    (user.extras || []).forEach(function (e) {
+      var amt = (e.per === 'month') ? (workedDays > 0 ? (Number(e.amount) || 0) : 0) : (Number(e.amount) || 0) * workedDays;
+      if (amt <= 0) return;
+      ex += amt;
+      var er = document.createElement('div');
+      er.className = 'mt-row mt-extra';
+      er.innerHTML = '<span class="mt-exname">' + esc(e.name || t('ex_label')) + '</span>' +
+        '<span class="mt-pay"><b>' + fmtMoneyFor(amt, cur, true) + '</b></span>';
+      tbl.appendChild(er);
+    });
+
+    var tot = document.createElement('div');
+    tot.className = 'mt-row mt-total';
+    tot.innerHTML =
+      '<span class="mt-date">' + t('tbl_total') + '</span>' +
+      '<span class="mt-cell"></span><span class="mt-cell"></span>' +
+      '<span class="mt-pay"><b>' + fmtMoneyFor(monthPay + ex, cur, true) + '</b></span>';
+    tbl.appendChild(tot);
+
+    $('admin-month-total').textContent = fmtMoneyFor(monthPay + ex, cur);
+    $('admin-month-hours').textContent = fmtHours(monthHours).replace(' ', '');
+    $('admin-month-shifts').textContent = monthShifts;
+  }
+  function adminBackToList() {
+    $('admin-detail-view').hidden = true;
+    $('admin-list-view').hidden = false;
+    adminSelectedUser = null;
   }
 
   // Detailed month export: one row per day (hours per tier, break, pay) + totals + % shares.
@@ -1307,7 +1436,18 @@
     $('btn-admin').addEventListener('click', openAdmin);
     $('admin-close').addEventListener('click', function () { closeSheetEl('admin-sheet', 'admin-backdrop'); });
     $('admin-backdrop').addEventListener('click', function () { closeSheetEl('admin-sheet', 'admin-backdrop'); });
+    $('admin-back').addEventListener('click', adminBackToList);
+    $('admin-prev-month').addEventListener('click', function () {
+      adminView.m--; if (adminView.m < 0) { adminView.m = 11; adminView.y--; } renderAdminDetail();
+    });
+    $('admin-next-month').addEventListener('click', function () {
+      adminView.m++; if (adminView.m > 11) { adminView.m = 0; adminView.y++; } renderAdminDetail();
+    });
+    $('admin-month-label').addEventListener('click', function () {
+      var now = new Date(); adminView.y = now.getFullYear(); adminView.m = now.getMonth(); renderAdminDetail();
+    });
     $('auth-submit').addEventListener('click', submitAuth);
+    $('auth-forgot').addEventListener('click', forgotPassword);
     $('auth-toggle').addEventListener('click', function () { setAuthMode(authMode === 'up' ? 'in' : 'up'); });
     $('auth-pass').addEventListener('keydown', function (e) { if (e.key === 'Enter') submitAuth(); });
     document.querySelectorAll('#theme-seg .seg-btn').forEach(function (b) {
