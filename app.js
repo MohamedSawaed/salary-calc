@@ -9,11 +9,35 @@
   var $ = function (id) { return document.getElementById(id); };
 
   /* ---------------- state ---------------- */
+  // Tax/deductions profile (all optional, opt-in — see tax.js for the calculation engine
+  // and the assumptions behind each field). isPrimaryJob/primaryJobGross/taxCoordination/
+  // niCoordination only matter when hasSecondJob is true.
+  function defaultTax() {
+    return {
+      enabled: false,
+      creditPoints: (typeof TaxCalc !== 'undefined') ? TaxCalc.CREDIT_POINTS_STANDARD : 2.25,
+      peripheryEnabled: false,
+      peripheryDiscount: 10,
+      pensionEnabled: true,
+      pensionRate: (typeof TaxCalc !== 'undefined') ? TaxCalc.PENSION_DEFAULT_RATE_PCT : 6,
+      hasSecondJob: false,
+      isPrimaryJob: true,
+      primaryJobGross: 0,
+      taxCoordination: false,
+      niCoordination: false
+    };
+  }
   var state = {
-    profile: { name: '', rate: 0, currency: '₪' },
+    profile: { name: '', rate: 0, currency: '₪', tax: defaultTax() },
     prefs: { theme: 'system', lang: null, view: 'list' }, // lang null -> show language picker first; view: 'list' | 'calendar'
     shifts: {} // 'yyyy-mm-dd' -> { start, end, type, note }
   };
+  // Merge a possibly-partial/stale tax object with current defaults, so new fields
+  // added later always have a sane value even for profiles saved before they existed.
+  function normalizeTax(profile) {
+    profile.tax = Object.assign(defaultTax(), profile.tax || {});
+    return profile;
+  }
 
   /* ---------------- i18n ---------------- */
   function t(key, vars) { return I18N.t(state.prefs.lang || 'en', key, vars); }
@@ -37,6 +61,7 @@
         if (data.shifts) state.shifts = data.shifts;
       }
     } catch (e) { /* corrupt storage -> start fresh */ }
+    normalizeTax(state.profile);
   }
   function save() {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
@@ -299,11 +324,49 @@
     });
     return sum;
   }
+  /* ---------------- tax / net pay (see tax.js) ---------------- */
+  // Deductions are computed on the month's shift-based gross only — extra payments
+  // (travel, allowances…) are added back untaxed, same as the gross "Earned" total.
+  function monthDeductions(grossPay) {
+    var tx = state.profile.tax;
+    if (!tx || !tx.enabled || typeof TaxCalc === 'undefined') return null;
+    return TaxCalc.computeMonthlyDeductions({
+      grossPay: grossPay,
+      creditPoints: tx.creditPoints,
+      peripheryDiscountPct: tx.peripheryEnabled ? tx.peripheryDiscount : 0,
+      hasSecondJob: tx.hasSecondJob,
+      isPrimaryJob: tx.isPrimaryJob,
+      primaryJobGross: tx.primaryJobGross,
+      taxCoordination: tx.taxCoordination,
+      niCoordination: tx.niCoordination,
+      pensionEnabled: tx.pensionEnabled,
+      pensionRatePct: tx.pensionRate
+    });
+  }
+
   function setMonthSummary(monthPay, monthHours, monthShifts, workedDays) {
     var ex = extrasAmount(state.profile.extras, workedDays, workedDays > 0);
     $('month-total').textContent = fmtMoney(monthPay + ex);
     $('month-hours').textContent = fmtHours(monthHours).replace(' ', '');
     $('month-shifts').textContent = monthShifts;
+
+    var ded = monthDeductions(monthPay);
+    var toggle = $('month-net-toggle');
+    if (ded) {
+      var net = ded.netPay + ex;
+      $('month-net').textContent = fmtMoney(net);
+      toggle.hidden = false;
+      $('nb-tax').textContent = fmtMoney(ded.incomeTax);
+      $('nb-ni').textContent = fmtMoney(ded.ni);
+      $('nb-health').textContent = fmtMoney(ded.health);
+      $('nb-pension').textContent = fmtMoney(ded.pension);
+      $('nb-pension-row').hidden = !state.profile.tax.pensionEnabled;
+      $('nb-net').textContent = fmtMoney(net);
+    } else {
+      toggle.hidden = true;
+      toggle.setAttribute('aria-expanded', 'false');
+      $('net-breakdown').hidden = true;
+    }
     return ex;
   }
   function renderExtras() {
@@ -753,6 +816,31 @@
   }
 
   /* ---------------- settings ---------------- */
+  // Yes/No seg-groups (data-val="0"/"1" on each .seg-btn) used throughout the tax section.
+  var BOOL_SEGS = ['tax-en-seg', 'tax-periphery-seg', 'pension-en-seg', 'tax-2nd-seg', 'tax-primary-seg', 'tax-coord-seg', 'ni-coord-seg'];
+  function syncBoolSeg(id, val) {
+    var seg = $(id); if (!seg) return;
+    seg.querySelectorAll('.seg-btn').forEach(function (b) {
+      var on = (b.getAttribute('data-val') === '1') === !!val;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+  }
+  function boolSegValue(id) {
+    var seg = $(id); if (!seg) return false;
+    var active = seg.querySelector('.seg-btn.active');
+    return !!active && active.getAttribute('data-val') === '1';
+  }
+  // Show/hide the tax sub-fields that only make sense given the current (unsaved) seg picks.
+  function applyTaxFieldsUi() {
+    $('tax-fields').hidden = !boolSegValue('tax-en-seg');
+    $('tax-periphery-rate-field').hidden = !boolSegValue('tax-periphery-seg');
+    $('pension-rate-field').hidden = !boolSegValue('pension-en-seg');
+    var second = boolSegValue('tax-2nd-seg');
+    $('tax-2nd-fields').hidden = !second;
+    $('tax-primary-gross-field').hidden = !(second && !boolSegValue('tax-primary-seg'));
+  }
+
   function openSettings() {
     $('set-name').value = state.profile.name;
     $('set-rate').value = state.profile.rate || '';
@@ -762,6 +850,22 @@
       b.classList.toggle('active', on);
       b.setAttribute('aria-pressed', on ? 'true' : 'false');
     });
+
+    var tx = state.profile.tax || defaultTax();
+    syncBoolSeg('tax-en-seg', tx.enabled);
+    syncBoolSeg('tax-periphery-seg', tx.peripheryEnabled);
+    syncBoolSeg('pension-en-seg', tx.pensionEnabled);
+    syncBoolSeg('tax-2nd-seg', tx.hasSecondJob);
+    syncBoolSeg('tax-primary-seg', tx.isPrimaryJob);
+    syncBoolSeg('tax-coord-seg', tx.taxCoordination);
+    syncBoolSeg('ni-coord-seg', tx.niCoordination);
+    $('tax-credit-points').value = tx.creditPoints;
+    $('tax-periphery-rate').value = tx.peripheryDiscount;
+    $('tax-pension-rate').value = tx.pensionRate;
+    $('tax-primary-gross').value = tx.primaryJobGross || '';
+    $('tax-primary-gross-cur').textContent = state.profile.currency || '₪';
+    applyTaxFieldsUi();
+
     updateAccountUI();
     renderExtras();
     openSheetEl('settings', 'set-backdrop');
@@ -775,6 +879,24 @@
     state.profile.name = name;
     state.profile.rate = rate;
     state.profile.currency = cur;
+
+    var creditPoints = parseFloat($('tax-credit-points').value);
+    var pensionRate = parseFloat($('tax-pension-rate').value);
+    var peripheryDiscount = parseFloat($('tax-periphery-rate').value);
+    state.profile.tax = {
+      enabled: boolSegValue('tax-en-seg'),
+      creditPoints: (creditPoints >= 0) ? creditPoints : TaxCalc.CREDIT_POINTS_STANDARD,
+      peripheryEnabled: boolSegValue('tax-periphery-seg'),
+      peripheryDiscount: (peripheryDiscount >= 0) ? peripheryDiscount : 10,
+      pensionEnabled: boolSegValue('pension-en-seg'),
+      pensionRate: (pensionRate >= 0) ? pensionRate : TaxCalc.PENSION_DEFAULT_RATE_PCT,
+      hasSecondJob: boolSegValue('tax-2nd-seg'),
+      isPrimaryJob: boolSegValue('tax-primary-seg'),
+      primaryJobGross: parseFloat($('tax-primary-gross').value) || 0,
+      taxCoordination: boolSegValue('tax-coord-seg'),
+      niCoordination: boolSegValue('ni-coord-seg')
+    };
+
     save();
     updateGreeting();
     renderView();
@@ -837,7 +959,7 @@
       try { data = JSON.parse(reader.result); } catch (err) { data = null; }
       if (!data || typeof data !== 'object' || (!data.profile && !data.shifts)) { toast(t('t_restore_bad')); return; }
       if (!confirm(t('restore_confirm'))) return;
-      state.profile = Object.assign({ name: '', rate: 0, currency: '₪' }, data.profile || {});
+      state.profile = normalizeTax(Object.assign({ name: '', rate: 0, currency: '₪' }, data.profile || {}));
       state.prefs = Object.assign(state.prefs, data.prefs || {});
       state.shifts = (data.shifts && typeof data.shifts === 'object') ? data.shifts : {};
       save(); migrate();
@@ -883,7 +1005,8 @@
   function cloudPayload() {
     return {
       name: state.profile.name, hourlyWage: state.profile.rate, currency: state.profile.currency,
-      email: auth ? auth.email : '', extras: state.profile.extras || [], shifts: state.shifts
+      email: auth ? auth.email : '', extras: state.profile.extras || [], tax: state.profile.tax || defaultTax(),
+      shifts: state.shifts
     };
   }
   function setSync(key) { var el = $('acc-sync'); if (el) el.textContent = key ? t(key) : ''; }
@@ -902,12 +1025,13 @@
   }
   function applyCloudData(data) {
     if (!data) return false;
-    state.profile = {
+    state.profile = normalizeTax({
       name: data.name || '',
       rate: (data.hourlyWage != null ? data.hourlyWage : 0),
       currency: data.currency || '₪',
-      extras: Array.isArray(data.extras) ? data.extras : []
-    };
+      extras: Array.isArray(data.extras) ? data.extras : [],
+      tax: data.tax || null
+    });
     state.shifts = (data.shifts && typeof data.shifts === 'object') ? data.shifts : {};
     var prev = pulling; pulling = true; // don't echo the just-pulled data back to the cloud
     save(); migrate();
@@ -985,7 +1109,7 @@
 
   function doSignOut() {
     clearAuthState();
-    state.profile = { name: '', rate: 0, currency: '₪' };
+    state.profile = { name: '', rate: 0, currency: '₪', tax: defaultTax() };
     state.shifts = {};
     save();
     closeSheetEl('settings', 'set-backdrop');
@@ -1092,7 +1216,7 @@
   function clearData() {
     if (!confirm(t('confirm_erase'))) return;
     state.shifts = {};
-    state.profile = { name: '', rate: 0, currency: '₪' };
+    state.profile = { name: '', rate: 0, currency: '₪', tax: defaultTax() };
     save();
     closeSheetEl('settings', 'set-backdrop');
     showOnboarding();
@@ -1106,7 +1230,7 @@
     var cur = $('onb-currency').value.trim() || '₪';
     if (!name) { toast(t('t_name')); return; }
     if (!(rate >= 0) || isNaN(rate)) { toast(t('t_wage')); return; }
-    state.profile = { name: name, rate: rate, currency: cur, extras: state.profile.extras || [] };
+    state.profile = { name: name, rate: rate, currency: cur, extras: state.profile.extras || [], tax: state.profile.tax || defaultTax() };
     save();
     showApp();
   }
@@ -1195,6 +1319,24 @@
         b.classList.add('active'); b.setAttribute('aria-pressed', 'true');
         save(); applyTheme();
       });
+    });
+
+    // tax settings: Yes/No segs just update their own visual state + reveal/hide
+    // dependent fields live; nothing is persisted until Save changes is pressed.
+    BOOL_SEGS.forEach(function (id) {
+      var seg = $(id); if (!seg) return;
+      seg.querySelectorAll('.seg-btn').forEach(function (b) {
+        b.addEventListener('click', function () {
+          syncBoolSeg(id, b.getAttribute('data-val') === '1');
+          applyTaxFieldsUi();
+        });
+      });
+    });
+    $('month-net-toggle').addEventListener('click', function () {
+      var panel = $('net-breakdown');
+      var show = panel.hidden;
+      panel.hidden = !show;
+      this.setAttribute('aria-expanded', show ? 'true' : 'false');
     });
 
     // PWA install

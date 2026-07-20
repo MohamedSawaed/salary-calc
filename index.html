@@ -85,11 +85,24 @@
         <div class="summary-main">
           <span class="summary-cap" data-i18n="earned">Earned this month</span>
           <span id="month-total" class="summary-amount">₪0.00</span>
+          <button id="month-net-toggle" class="summary-net-row" hidden aria-expanded="false">
+            <span class="summary-net-cap" data-i18n="net_pay">Net pay (est.)</span>
+            <span id="month-net" class="summary-net-amount">₪0.00</span>
+          </button>
         </div>
         <div class="summary-stats">
           <div class="stat"><span id="month-hours" class="stat-num">0</span><span class="stat-cap" data-i18n="stat_hours">hours</span></div>
           <div class="stat"><span id="month-shifts" class="stat-num">0</span><span class="stat-cap" data-i18n="stat_shifts">entries</span></div>
         </div>
+      </div>
+
+      <div id="net-breakdown" class="net-breakdown" hidden>
+        <div class="nb-row"><span data-i18n="nb_tax">Income tax</span><span id="nb-tax">₪0.00</span></div>
+        <div class="nb-row"><span data-i18n="nb_ni">National Insurance</span><span id="nb-ni">₪0.00</span></div>
+        <div class="nb-row"><span data-i18n="nb_health">Health tax</span><span id="nb-health">₪0.00</span></div>
+        <div class="nb-row" id="nb-pension-row"><span data-i18n="nb_pension">Pension</span><span id="nb-pension">₪0.00</span></div>
+        <div class="nb-row nb-total"><span data-i18n="nb_net">Net pay</span><span id="nb-net">₪0.00</span></div>
+        <p class="field-hint" data-i18n="tax_disclaimer">Estimate only, based on 2026 national rates — not a substitute for your real payslip.</p>
       </div>
     </header>
 
@@ -247,6 +260,113 @@
 
       <section class="set-section">
         <div class="set-section-head">
+          <span class="set-ico"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="18" x2="18" y2="6"/><circle cx="7.5" cy="7.5" r="1.6"/><circle cx="16.5" cy="16.5" r="1.6"/></svg></span>
+          <div class="set-section-titles">
+            <div class="set-section-title" data-i18n="tax_title">Tax &amp; deductions</div>
+            <div class="set-section-sub" data-i18n="tax_hint">Estimate income tax, National Insurance, health tax &amp; pension — see net pay, not just gross.</div>
+          </div>
+        </div>
+
+        <div class="field">
+          <span class="field-label" data-i18n="tax_enable">Calculate net pay</span>
+          <div class="seg" id="tax-en-seg" role="group" aria-label="Enable tax calculation">
+            <button type="button" class="seg-btn" data-val="0" aria-pressed="true" data-i18n="opt_no">No</button>
+            <button type="button" class="seg-btn" data-val="1" aria-pressed="false" data-i18n="opt_yes">Yes</button>
+          </div>
+        </div>
+
+        <div id="tax-fields" hidden>
+          <label class="field">
+            <span class="field-label" data-i18n="tax_credit_points">Tax credit points</span>
+            <input id="tax-credit-points" type="number" inputmode="decimal" min="0" step="0.25" />
+            <span class="field-hint" data-i18n="tax_credit_points_hint">Standard is 2.25 — women get +0.5 (2.75). Check Form 101 or a payslip if unsure.</span>
+          </label>
+
+          <div class="field">
+            <span class="field-label" data-i18n="tax_periphery_enable">Development-town / periphery tax reduction?</span>
+            <div class="seg" id="tax-periphery-seg" role="group" aria-label="Periphery tax reduction">
+              <button type="button" class="seg-btn" data-val="0" aria-pressed="true" data-i18n="opt_no">No</button>
+              <button type="button" class="seg-btn" data-val="1" aria-pressed="false" data-i18n="opt_yes">Yes</button>
+            </div>
+            <span class="field-hint" data-i18n="tax_periphery_enable_hint">A discount on the tax itself for residents of certain settlements (Negev/Galilee development towns, border communities, Eilat…), per the Tax Authority's list.</span>
+          </div>
+          <label class="field" id="tax-periphery-rate-field" hidden>
+            <span class="field-label" data-i18n="tax_periphery_rate">Discount percentage</span>
+            <div class="rate-row">
+              <input id="tax-periphery-rate" type="number" inputmode="decimal" min="0" max="25" step="0.5" />
+              <span class="rate-suffix">%</span>
+            </div>
+            <span class="field-hint" data-i18n="tax_periphery_rate_hint">Commonly 7–20% depending on the settlement — check your Tax Authority certificate or payslip. Applies up to ₪22,380/month of income.</span>
+          </label>
+
+          <div class="field">
+            <span class="field-label" data-i18n="tax_pension_enable">Pension deduction</span>
+            <div class="seg" id="pension-en-seg" role="group" aria-label="Pension deduction">
+              <button type="button" class="seg-btn" data-val="0" aria-pressed="false" data-i18n="opt_no">No</button>
+              <button type="button" class="seg-btn" data-val="1" aria-pressed="true" data-i18n="opt_yes">Yes</button>
+            </div>
+          </div>
+          <label class="field" id="pension-rate-field">
+            <span class="field-label" data-i18n="tax_pension_rate">Pension rate (your share)</span>
+            <div class="rate-row">
+              <input id="tax-pension-rate" type="number" inputmode="decimal" min="0" max="100" step="0.1" />
+              <span class="rate-suffix">%</span>
+            </div>
+            <span class="field-hint" data-i18n="tax_pension_rate_hint">The mandatory standard rate is 6%.</span>
+          </label>
+
+          <div class="field">
+            <span class="field-label" data-i18n="tax_second_job">Do you have a second job?</span>
+            <div class="seg" id="tax-2nd-seg" role="group" aria-label="Second job">
+              <button type="button" class="seg-btn" data-val="0" aria-pressed="true" data-i18n="opt_no">No</button>
+              <button type="button" class="seg-btn" data-val="1" aria-pressed="false" data-i18n="opt_yes">Yes</button>
+            </div>
+          </div>
+
+          <div id="tax-2nd-fields" hidden>
+            <div class="field">
+              <span class="field-label" data-i18n="tax_is_primary">Is the job tracked in this app your primary employer?</span>
+              <div class="seg" id="tax-primary-seg" role="group" aria-label="Is this job your primary employer">
+                <button type="button" class="seg-btn" data-val="1" aria-pressed="true" data-i18n="opt_yes">Yes</button>
+                <button type="button" class="seg-btn" data-val="0" aria-pressed="false" data-i18n="opt_no">No</button>
+              </div>
+              <span class="field-hint" data-i18n="tax_is_primary_hint">Your primary employer is the one that gets your full tax credit points and the reduced National Insurance rate.</span>
+            </div>
+
+            <label class="field" id="tax-primary-gross-field">
+              <span class="field-label" data-i18n="tax_primary_gross">Gross monthly salary at your primary employer</span>
+              <div class="rate-row">
+                <input id="tax-primary-gross" type="number" inputmode="decimal" min="0" step="0.01" />
+                <span class="rate-suffix" id="tax-primary-gross-cur">₪</span>
+              </div>
+            </label>
+
+            <div class="field">
+              <span class="field-label" data-i18n="tax_coordination">Do you have tax coordination (תיאום מס)?</span>
+              <div class="seg" id="tax-coord-seg" role="group" aria-label="Tax coordination">
+                <button type="button" class="seg-btn" data-val="0" aria-pressed="true" data-i18n="opt_no">No</button>
+                <button type="button" class="seg-btn" data-val="1" aria-pressed="false" data-i18n="opt_yes">Yes</button>
+              </div>
+              <span class="field-hint" data-i18n="tax_coordination_hint">Without it, your second job must withhold tax at a flat 47%, by law.</span>
+            </div>
+
+            <div class="field">
+              <span class="field-label" data-i18n="tax_ni_coordination">Do you have National Insurance coordination (תיאום דמי ביטוח)?</span>
+              <div class="seg" id="ni-coord-seg" role="group" aria-label="National Insurance coordination">
+                <button type="button" class="seg-btn" data-val="0" aria-pressed="true" data-i18n="opt_no">No</button>
+                <button type="button" class="seg-btn" data-val="1" aria-pressed="false" data-i18n="opt_yes">Yes</button>
+              </div>
+              <span class="field-hint" data-i18n="tax_ni_coordination_hint">Without it, your second job pays the full National Insurance rate on all of its pay.</span>
+            </div>
+          </div>
+
+          <p class="info-note" data-i18n-html="tax_tips">Tips</p>
+          <p class="field-hint" data-i18n="tax_disclaimer">Estimate only, based on 2026 national rates — not a substitute for your real payslip.</p>
+        </div>
+      </section>
+
+      <section class="set-section">
+        <div class="set-section-head">
           <span class="set-ico"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 8.2v7.6M8.2 12h7.6"/></svg></span>
           <div class="set-section-titles">
             <div class="set-section-title" data-i18n="ex_title">Extra payments</div>
@@ -346,6 +466,7 @@
 
   <script>window.FIREBASE = { apiKey: "AIzaSyC5pa4xZ3k_jmD3BaNcysnYISYwh1e2n6w", projectId: "shiftpay-79918" };</script>
   <script src="calc.js"></script>
+  <script src="tax.js"></script>
   <script src="i18n.js"></script>
   <script src="cloud.js"></script>
   <script src="app.js"></script>
