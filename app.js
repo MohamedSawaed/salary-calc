@@ -1027,6 +1027,11 @@
   }
   function applyCloudData(data) {
     if (!data) return false;
+    if (data.blocked) { // admin-blocked account: this is a client-side courtesy message only —
+      doSignOut();      // the real enforcement has to be a Firestore rule, since a modified
+      showAuthErr(t('err_blocked')); // client could otherwise just skip this check.
+      return false;
+    }
     state.profile = normalizeTax({
       name: data.name || '',
       rate: (data.hourlyWage != null ? data.hourlyWage : 0),
@@ -1100,7 +1105,9 @@
       saveAuth();
       return Cloud.load(auth.uid, auth.idToken);
     }).then(function (data) {
-      if (!applyCloudData(data)) cloudPushNow(); // empty/new account -> seed with current local data
+      var hadData = applyCloudData(data);
+      if (!auth) return; // applyCloudData found a blocked account and already signed us back out
+      if (!hadData) cloudPushNow(); // empty/new account -> seed with current local data
       $('auth-screen').hidden = true;
       closeSheetEl('settings', 'set-backdrop');
       applyTheme(); applyLang();
@@ -1193,9 +1200,35 @@
     adminView = { y: now.getFullYear(), m: now.getMonth() };
     $('admin-detail-name').textContent = user.name || '—';
     $('admin-detail-email').textContent = user.email || user.uid;
+    renderAdminBlockBtn(user);
     $('admin-list-view').hidden = true;
     $('admin-detail-view').hidden = false;
     renderAdminDetail();
+  }
+  function renderAdminBlockBtn(user) {
+    var btn = $('admin-block-btn');
+    var isSelf = !!(user.email && user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase());
+    btn.hidden = isSelf; // can't block your own admin account
+    btn.textContent = t(user.blocked ? 'admin_unblock' : 'admin_block');
+    btn.className = user.blocked ? 'btn-ghost' : 'btn-ghost-danger';
+  }
+  // Sets/clears the "blocked" flag on the currently-open user's cloud doc. This is a
+  // client-side convenience only — real enforcement is a Firestore rule that must refuse
+  // reads/writes for a blocked doc regardless of what any client sends.
+  function adminToggleBlock() {
+    var user = adminSelectedUser; if (!user || !user.uid) return;
+    if (user.email && user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) return;
+    var next = !user.blocked;
+    if (next && !confirm(t('confirm_block', { name: user.name || user.email || user.uid }))) return;
+    var btn = $('admin-block-btn'); btn.disabled = true;
+    ensureToken().then(function (tok) { return Cloud.setBlocked(tok, user.uid, next); })
+      .then(function () {
+        user.blocked = next;
+        renderAdminBlockBtn(user);
+        toast(t(next ? 't_blocked' : 't_unblocked'));
+      })
+      .catch(function () { toast(t('err_generic')); })
+      .then(function () { btn.disabled = false; });
   }
   function renderAdminDetail() {
     var user = adminSelectedUser; if (!user) return;
@@ -1437,6 +1470,7 @@
     $('admin-close').addEventListener('click', function () { closeSheetEl('admin-sheet', 'admin-backdrop'); });
     $('admin-backdrop').addEventListener('click', function () { closeSheetEl('admin-sheet', 'admin-backdrop'); });
     $('admin-back').addEventListener('click', adminBackToList);
+    $('admin-block-btn').addEventListener('click', adminToggleBlock);
     $('admin-prev-month').addEventListener('click', function () {
       adminView.m--; if (adminView.m < 0) { adminView.m = 11; adminView.y--; } renderAdminDetail();
     });
@@ -1522,7 +1556,7 @@
     // signed in -> pull the latest from the cloud, then re-route/render
     if (auth && Cloud.configured()) {
       cloudPull()
-        .then(function () { routeInitial(); updateAccountUI(); })
+        .then(function () { if (auth) routeInitial(); updateAccountUI(); }) // skip re-routing if cloudPull found the account blocked and signed us out
         .catch(function () { setSync('sync_offline'); })
         .then(function () { pulling = false; });
     } else {

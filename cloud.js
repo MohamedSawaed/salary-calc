@@ -113,6 +113,20 @@
     }).then(function (r) { return r.json().then(function (j) { if (j.error) throw mkErr(j.error); return true; }); });
   }
 
+  /**
+   * Admin only (must be enforced by Firestore rules, not just this client): set/clear the
+   * "blocked" flag on another user's doc, WITHOUT touching their other fields (uses an
+   * updateMask so this is a partial patch, unlike save() which overwrites the whole doc).
+   */
+  function setBlocked(idToken, uid, blocked) {
+    var url = docUrl(uid) + '?updateMask.fieldPaths=blocked';
+    return fetch(url, {
+      method: 'PATCH',
+      headers: { Authorization: 'Bearer ' + idToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fields: { blocked: toFs(!!blocked) } })
+    }).then(function (r) { return r.json().then(function (j) { if (j.error) throw mkErr(j.error); return true; }); });
+  }
+
   /** Admin only (allowed by rules): list every user's record. Returns [{ uid, name, hourlyWage, currency, email, shifts, updatedAt }]. */
   function listUsers(idToken) {
     var url = 'https://firestore.googleapis.com/v1/projects/' + cfg().projectId +
@@ -136,7 +150,7 @@
       });
   }
 
-  var api = { configured: configured, signUp: signUp, signIn: signIn, sendPasswordReset: sendPasswordReset, refresh: refresh, load: load, save: save, listUsers: listUsers };
+  var api = { configured: configured, signUp: signUp, signIn: signIn, sendPasswordReset: sendPasswordReset, refresh: refresh, load: load, save: save, listUsers: listUsers, setBlocked: setBlocked };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   global.Cloud = api;
 })(typeof window !== 'undefined' ? window : globalThis);
