@@ -1027,10 +1027,9 @@
   }
   function applyCloudData(data) {
     if (!data) return false;
-    if (data.blocked) { // admin-blocked account: this is a client-side courtesy message only —
-      doSignOut();      // the real enforcement has to be a Firestore rule, since a modified
-      showAuthErr(t('err_blocked')); // client could otherwise just skip this check.
-      return false;
+    if (data.blocked) { // admin-blocked account: silently bounced back to sign-in, no
+      doSignOut(true);  // message — deliberately doesn't reveal that they were blocked.
+      return false;     // real enforcement is the Firestore rule, not this client check.
     }
     state.profile = normalizeTax({
       name: data.name || '',
@@ -1136,7 +1135,7 @@
     }).then(function () { btn.disabled = false; });
   }
 
-  function doSignOut() {
+  function doSignOut(silent) {
     clearAuthState();
     state.profile = { name: '', rate: 0, currency: '₪', tax: defaultTax() };
     state.shifts = {};
@@ -1144,7 +1143,7 @@
     closeSheetEl('settings', 'set-backdrop');
     updateAccountUI();
     showAuthScreen();
-    toast(t('t_signedout'));
+    if (!silent) toast(t('t_signedout'));
   }
 
   /* ---- admin dashboard (all users) ---- */
@@ -1465,7 +1464,7 @@
     $('btn-clear').addEventListener('click', clearData);
 
     // account / cloud sign-in (sign-in is required)
-    $('btn-signout').addEventListener('click', doSignOut);
+    $('btn-signout').addEventListener('click', function () { doSignOut(); });
     $('btn-admin').addEventListener('click', openAdmin);
     $('admin-close').addEventListener('click', function () { closeSheetEl('admin-sheet', 'admin-backdrop'); });
     $('admin-backdrop').addEventListener('click', function () { closeSheetEl('admin-sheet', 'admin-backdrop'); });
