@@ -964,6 +964,7 @@
       state.profile = normalizeTax(Object.assign({ name: '', rate: 0, currency: '₪' }, data.profile || {}));
       state.prefs = Object.assign(state.prefs, data.prefs || {});
       state.shifts = (data.shifts && typeof data.shifts === 'object') ? data.shifts : {};
+      lastKnownShiftCount = Object.keys(state.shifts).length; // explicit restore -> allowed to sync as-is, even if empty
       save(); migrate();
       applyTheme(); applyLang();
       closeSheetEl('settings', 'set-backdrop');
@@ -981,6 +982,7 @@
   var authMode = 'in';      // 'in' | 'up'
   var pushTimer = null;
   var pulling = false;      // true while loading from cloud -> suppress echo writes
+  var lastKnownShiftCount = -1; // -1 = not yet established this session (no pull/push done yet)
 
   function loadAuth() { try { var r = localStorage.getItem(AUTH_KEY); auth = r ? JSON.parse(r) : null; } catch (e) { auth = null; } }
   function saveAuth() { try { localStorage.setItem(AUTH_KEY, JSON.stringify(auth)); } catch (e) {} }
@@ -1017,11 +1019,17 @@
     if (!auth) return Promise.resolve();
     setSync('sync_syncing');
     return ensureToken().then(function (tok) { return Cloud.save(auth.uid, tok, cloudPayload()); })
-      .then(function () { setSync('sync_synced'); })
+      .then(function () { setSync('sync_synced'); lastKnownShiftCount = Object.keys(state.shifts).length; })
       .catch(function () { setSync('sync_offline'); });
   }
   function cloudPush() {
     if (pulling || !auth || !Cloud.configured()) return;
+    // Refuse to let a routine debounced sync silently replace a cloud copy we know had
+    // shifts with an empty one — that shape is always a bug (stale load, a race, a bad
+    // parse), never real user intent. The one legitimate "erase everything" / "restore a
+    // backup" actions reset lastKnownShiftCount themselves before saving, so they still
+    // go through.
+    if (lastKnownShiftCount > 0 && Object.keys(state.shifts).length === 0) return;
     clearTimeout(pushTimer);
     pushTimer = setTimeout(cloudPushNow, 700);
   }
@@ -1039,6 +1047,7 @@
       tax: data.tax || null
     });
     state.shifts = (data.shifts && typeof data.shifts === 'object') ? data.shifts : {};
+    lastKnownShiftCount = Object.keys(state.shifts).length;
     var prev = pulling; pulling = true; // don't echo the just-pulled data back to the cloud
     save(); migrate();
     pulling = prev;
@@ -1046,7 +1055,18 @@
   }
   function cloudPull() {
     if (!auth) return Promise.resolve(null);
+    // routeInitial() renders the calendar with last-known local data before this network
+    // round-trip finishes, so the user can add/edit/delete a shift while a pull is still
+    // in flight. Snapshot local shifts now; if they changed by the time the (now-stale)
+    // server copy arrives, applying it verbatim would silently erase that fresh edit. In
+    // that case keep the newer local edit and push it to heal the cloud copy instead of
+    // pulling the stale one down.
+    var before = JSON.stringify(state.shifts);
     return ensureToken().then(function (tok) { return Cloud.load(auth.uid, tok); }).then(function (data) {
+      if (data && !data.blocked && JSON.stringify(state.shifts) !== before) {
+        cloudPushNow();
+        return data;
+      }
       applyCloudData(data); return data;
     });
   }
@@ -1139,6 +1159,7 @@
     clearAuthState();
     state.profile = { name: '', rate: 0, currency: '₪', tax: defaultTax() };
     state.shifts = {};
+    lastKnownShiftCount = -1; // unknown again until the next account's data is pulled
     save();
     closeSheetEl('settings', 'set-backdrop');
     updateAccountUI();
@@ -1378,6 +1399,7 @@
     if (!confirm(t('confirm_erase'))) return;
     state.shifts = {};
     state.profile = { name: '', rate: 0, currency: '₪', tax: defaultTax() };
+    lastKnownShiftCount = 0; // explicit user-confirmed wipe -> allowed to sync as empty
     save();
     closeSheetEl('settings', 'set-backdrop');
     showOnboarding();
