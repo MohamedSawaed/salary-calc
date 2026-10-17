@@ -1170,8 +1170,16 @@
       saveAuth();
       return Cloud.load(auth.uid, auth.idToken);
     }).then(function (data) {
-      var hadData = applyCloudData(data);
-      if (!auth) return; // applyCloudData found a blocked account and already signed us back out
+      // Same protection as cloudPull(): signing in again (expired session, re-auth after
+      // sign-out, a second device) must not let an older server copy silently replace
+      // local edits that never finished syncing last time.
+      var hadData;
+      if (data && !data.blocked && (hasPendingPush() || localAheadOfCloud(state.shifts, data.shifts))) {
+        hadData = true; cloudPushNow();
+      } else {
+        hadData = applyCloudData(data);
+        if (!auth) return; // applyCloudData found a blocked account and already signed us back out
+      }
       if (!hadData) cloudPushNow(); // empty/new account -> seed with current local data
       $('auth-screen').hidden = true;
       closeSheetEl('settings', 'set-backdrop');
