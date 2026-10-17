@@ -872,20 +872,11 @@
     renderExtras();
     openSheetEl('settings', 'set-backdrop');
   }
-  function saveSettings() {
-    var name = $('set-name').value.trim();
-    var rate = parseFloat($('set-rate').value);
-    var cur = $('set-currency').value.trim() || '₪';
-    if (!name) { toast(t('t_name')); return; }
-    if (!(rate >= 0) || isNaN(rate)) { toast(t('t_wage')); return; }
-    state.profile.name = name;
-    state.profile.rate = rate;
-    state.profile.currency = cur;
-
+  function buildTaxFromUi() {
     var creditPoints = parseFloat($('tax-credit-points').value);
     var pensionRate = parseFloat($('tax-pension-rate').value);
     var peripheryDiscount = parseFloat($('tax-periphery-rate').value);
-    state.profile.tax = {
+    return {
       enabled: boolSegValue('tax-en-seg'),
       creditPoints: (creditPoints >= 0) ? creditPoints : TaxCalc.CREDIT_POINTS_STANDARD,
       peripheryEnabled: boolSegValue('tax-periphery-seg'),
@@ -898,6 +889,21 @@
       taxCoordination: boolSegValue('tax-coord-seg'),
       niCoordination: boolSegValue('ni-coord-seg')
     };
+  }
+  // Tax fields live-save on every change (like Extras/Theme elsewhere in this sheet) so
+  // closing the sheet via the X/backdrop instead of "Save changes" — the only thing that
+  // used to persist this section — can no longer silently discard it.
+  function saveTaxLive() { state.profile.tax = buildTaxFromUi(); save(); }
+  function saveSettings() {
+    var name = $('set-name').value.trim();
+    var rate = parseFloat($('set-rate').value);
+    var cur = $('set-currency').value.trim() || '₪';
+    if (!name) { toast(t('t_name')); return; }
+    if (!(rate >= 0) || isNaN(rate)) { toast(t('t_wage')); return; }
+    state.profile.name = name;
+    state.profile.rate = rate;
+    state.profile.currency = cur;
+    state.profile.tax = buildTaxFromUi();
 
     save();
     updateGreeting();
@@ -1556,16 +1562,22 @@
       });
     });
 
-    // tax settings: Yes/No segs just update their own visual state + reveal/hide
-    // dependent fields live; nothing is persisted until Save changes is pressed.
+    // tax settings: Yes/No segs update their own visual state, reveal/hide dependent
+    // fields, and persist immediately — closing the sheet without hitting the (distant,
+    // easy-to-miss) Save changes button must not discard them.
     BOOL_SEGS.forEach(function (id) {
       var seg = $(id); if (!seg) return;
       seg.querySelectorAll('.seg-btn').forEach(function (b) {
         b.addEventListener('click', function () {
           syncBoolSeg(id, b.getAttribute('data-val') === '1');
           applyTaxFieldsUi();
+          saveTaxLive();
         });
       });
+    });
+    ['tax-credit-points', 'tax-periphery-rate', 'tax-pension-rate', 'tax-primary-gross'].forEach(function (id) {
+      var el = $(id); if (!el) return;
+      el.addEventListener('input', saveTaxLive);
     });
     $('month-net-toggle').addEventListener('click', function () {
       var panel = $('net-breakdown');
