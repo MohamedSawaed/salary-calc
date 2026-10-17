@@ -984,6 +984,18 @@
   var pulling = false;      // true while loading from cloud -> suppress echo writes
   var lastKnownShiftCount = -1; // -1 = not yet established this session (no pull/push done yet)
 
+  // Durable (disk-backed) marker for "a local save hasn't been confirmed synced to the
+  // cloud yet". pushTimer/the in-memory guards below only protect against the app being
+  // backgrounded — a phone reboot or a killed process can wipe those with no warning at
+  // all, skipping visibilitychange/pagehide entirely. This flag is written synchronously
+  // the moment a sync is needed and only cleared once the push actually succeeds, so it
+  // survives any kind of restart and tells the next launch's cloudPull() not to trust a
+  // cloud copy that might predate the last edit.
+  var PENDING_PUSH_KEY = 'shiftpay.pendingPush';
+  function markPendingPush() { try { localStorage.setItem(PENDING_PUSH_KEY, '1'); } catch (e) {} }
+  function clearPendingPush() { try { localStorage.removeItem(PENDING_PUSH_KEY); } catch (e) {} }
+  function hasPendingPush() { try { return localStorage.getItem(PENDING_PUSH_KEY) === '1'; } catch (e) { return false; } }
+
   function loadAuth() { try { var r = localStorage.getItem(AUTH_KEY); auth = r ? JSON.parse(r) : null; } catch (e) { auth = null; } }
   function saveAuth() { try { localStorage.setItem(AUTH_KEY, JSON.stringify(auth)); } catch (e) {} }
   function clearAuthState() { auth = null; try { localStorage.removeItem(AUTH_KEY); } catch (e) {} }
@@ -1019,7 +1031,7 @@
     if (!auth) return Promise.resolve();
     setSync('sync_syncing');
     return ensureToken().then(function (tok) { return Cloud.save(auth.uid, tok, cloudPayload()); })
-      .then(function () { setSync('sync_synced'); lastKnownShiftCount = Object.keys(state.shifts).length; })
+      .then(function () { setSync('sync_synced'); lastKnownShiftCount = Object.keys(state.shifts).length; clearPendingPush(); })
       .catch(function () { setSync('sync_offline'); });
   }
   function cloudPush() {
@@ -1030,6 +1042,7 @@
     // backup" actions reset lastKnownShiftCount themselves before saving, so they still
     // go through.
     if (lastKnownShiftCount > 0 && Object.keys(state.shifts).length === 0) return;
+    markPendingPush(); // written now, synchronously — the push itself is still 700ms away
     clearTimeout(pushTimer);
     pushTimer = setTimeout(cloudPushNow, 700);
   }
@@ -1081,12 +1094,16 @@
     // server copy arrives, applying it verbatim would silently erase that fresh edit. In
     // that case keep the newer local edit and push it to heal the cloud copy instead of
     // pulling the stale one down. Same treatment if local already had shifts the server
-    // copy never got a chance to receive, even before this pull started.
+    // copy never got a chance to receive, even before this pull started — including a
+    // save (shifts OR settings/tax) from a previous session that never finished syncing
+    // before the app was killed or the phone restarted; hasPendingPush() catches that
+    // case even though nothing changed during *this* pull.
     var before = state.shifts;
     var beforeJson = JSON.stringify(before);
+    var wasPending = hasPendingPush();
     return ensureToken().then(function (tok) { return Cloud.load(auth.uid, tok); }).then(function (data) {
       if (data && !data.blocked &&
-          (JSON.stringify(state.shifts) !== beforeJson || localAheadOfCloud(before, data.shifts))) {
+          (JSON.stringify(state.shifts) !== beforeJson || localAheadOfCloud(before, data.shifts) || wasPending)) {
         cloudPushNow();
         return data;
       }
