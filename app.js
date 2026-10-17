@@ -6,6 +6,10 @@
   'use strict';
 
   var STORAGE_KEY = 'shiftpay.v1';
+  // Bump alongside service-worker.js's CACHE version on every deploy. Shown at the
+  // bottom of Settings so it's possible to confirm which build is actually running on a
+  // device instead of guessing from symptoms alone.
+  var APP_BUILD = 'v36';
   var $ = function (id) { return document.getElementById(id); };
 
   /* ---------------- state ---------------- */
@@ -1624,6 +1628,7 @@
 
   /* ---------------- boot ---------------- */
   function init() {
+    if ($('app-build')) $('app-build').textContent = 'build ' + APP_BUILD;
     load();
     loadAuth();
     pulling = true;            // suppress cloud writes until the first pull settles
