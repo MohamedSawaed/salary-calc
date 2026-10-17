@@ -1033,6 +1033,18 @@
     clearTimeout(pushTimer);
     pushTimer = setTimeout(cloudPushNow, 700);
   }
+  // The debounce above saves a network call on every keystroke, but it also means a
+  // write sits unsynced for up to 700ms. On mobile the OS can kill a backgrounded app's
+  // process at any moment, so if the user edits something and leaves right away, that
+  // timer never fires and the edit is lost the next time cloudPull() runs (see there).
+  // Flush immediately the moment the app is hidden/closed instead of waiting it out.
+  function flushPendingPush() {
+    if (pushTimer) { clearTimeout(pushTimer); pushTimer = null; cloudPushNow(); }
+  }
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'hidden') flushPendingPush();
+  });
+  window.addEventListener('pagehide', flushPendingPush);
   function applyCloudData(data) {
     if (!data) return false;
     if (data.blocked) { // admin-blocked account: silently bounced back to sign-in, no
@@ -1053,6 +1065,14 @@
     pulling = prev;
     return true;
   }
+  // True if local has a shift the incoming cloud copy has never seen — meaning the last
+  // edit was written to localStorage but its debounced push never reached the server
+  // (app closed/killed too fast, or offline at the time). Applying such a cloud copy
+  // would silently delete that shift, so local wins here and gets pushed up instead.
+  function localAheadOfCloud(localShifts, cloudShiftsRaw) {
+    var cloudShifts = (cloudShiftsRaw && typeof cloudShiftsRaw === 'object') ? cloudShiftsRaw : {};
+    return Object.keys(localShifts).some(function (k) { return !(k in cloudShifts); });
+  }
   function cloudPull() {
     if (!auth) return Promise.resolve(null);
     // routeInitial() renders the calendar with last-known local data before this network
@@ -1060,10 +1080,13 @@
     // in flight. Snapshot local shifts now; if they changed by the time the (now-stale)
     // server copy arrives, applying it verbatim would silently erase that fresh edit. In
     // that case keep the newer local edit and push it to heal the cloud copy instead of
-    // pulling the stale one down.
-    var before = JSON.stringify(state.shifts);
+    // pulling the stale one down. Same treatment if local already had shifts the server
+    // copy never got a chance to receive, even before this pull started.
+    var before = state.shifts;
+    var beforeJson = JSON.stringify(before);
     return ensureToken().then(function (tok) { return Cloud.load(auth.uid, tok); }).then(function (data) {
-      if (data && !data.blocked && JSON.stringify(state.shifts) !== before) {
+      if (data && !data.blocked &&
+          (JSON.stringify(state.shifts) !== beforeJson || localAheadOfCloud(before, data.shifts))) {
         cloudPushNow();
         return data;
       }
