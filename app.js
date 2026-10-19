@@ -9,7 +9,7 @@
   // Bump alongside service-worker.js's CACHE version on every deploy. Shown at the
   // bottom of Settings so it's possible to confirm which build is actually running on a
   // device instead of guessing from symptoms alone.
-  var APP_BUILD = 'v36';
+  var APP_BUILD = 'v37';
   var $ = function (id) { return document.getElementById(id); };
 
   /* ---------------- state ---------------- */
@@ -794,6 +794,7 @@
       };
     }
     save();
+    cloudPushUrgent();
     renderView();
     closeSheetEl('sheet', 'sheet-backdrop');
     toast(t('t_saved', { x: fmtMoney(dayResult(editKey).pay) }));
@@ -803,6 +804,7 @@
     if (editKey && state.shifts[editKey]) {
       delete state.shifts[editKey];
       save();
+      cloudPushUrgent();
       renderView();
     }
     closeSheetEl('sheet', 'sheet-backdrop');
@@ -897,7 +899,7 @@
   // Tax fields live-save on every change (like Extras/Theme elsewhere in this sheet) so
   // closing the sheet via the X/backdrop instead of "Save changes" — the only thing that
   // used to persist this section — can no longer silently discard it.
-  function saveTaxLive() { state.profile.tax = buildTaxFromUi(); save(); }
+  function saveTaxLive() { state.profile.tax = buildTaxFromUi(); save(); cloudPushUrgent(); }
   function saveSettings() {
     var name = $('set-name').value.trim();
     var rate = parseFloat($('set-rate').value);
@@ -910,6 +912,7 @@
     state.profile.tax = buildTaxFromUi();
 
     save();
+    cloudPushUrgent();
     updateGreeting();
     renderView();
     closeSheetEl('settings', 'set-backdrop');
@@ -1055,6 +1058,17 @@
     markPendingPush(); // written now, synchronously — the push itself is still 700ms away
     clearTimeout(pushTimer);
     pushTimer = setTimeout(cloudPushNow, 700);
+  }
+  // For a discrete, user-completed action (saved a shift, deleted one, saved settings) —
+  // as opposed to the continuous typing cloudPush() debounces — there's nothing left to
+  // batch, so push to the cloud immediately instead of leaving a window where the app
+  // could be closed before the debounced push ever fires.
+  function cloudPushUrgent() {
+    if (pulling || !auth || !Cloud.configured()) return;
+    if (lastKnownShiftCount > 0 && Object.keys(state.shifts).length === 0) return;
+    clearTimeout(pushTimer); pushTimer = null;
+    markPendingPush();
+    cloudPushNow();
   }
   // The debounce above saves a network call on every keystroke, but it also means a
   // write sits unsynced for up to 700ms. On mobile the OS can kill a backgrounded app's
