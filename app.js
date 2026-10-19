@@ -9,7 +9,7 @@
   // Bump alongside service-worker.js's CACHE version on every deploy. Shown at the
   // bottom of Settings so it's possible to confirm which build is actually running on a
   // device instead of guessing from symptoms alone.
-  var APP_BUILD = 'v38';
+  var APP_BUILD = 'v39';
   var $ = function (id) { return document.getElementById(id); };
 
   /* ---------------- state ---------------- */
@@ -1041,11 +1041,15 @@
   function setSync(key) { var el = $('acc-sync'); if (el) el.textContent = key ? t(key) : ''; }
 
   function cloudPushNow() {
-    if (!auth) return Promise.resolve();
+    if (!auth) return Promise.resolve(true);
     setSync('sync_syncing');
     return ensureToken().then(function (tok) { return Cloud.save(auth.uid, tok, cloudPayload()); })
-      .then(function () { setSync('sync_synced'); lastKnownShiftCount = Object.keys(state.shifts).length; clearPendingPush(); })
-      .catch(function () { setSync('sync_offline'); });
+      .then(function () { setSync('sync_synced'); lastKnownShiftCount = Object.keys(state.shifts).length; clearPendingPush(); return true; })
+      .catch(function (e) {
+        setSync('sync_offline');
+        if (typeof console !== 'undefined') console.error('ShiftPay cloud sync failed:', e && (e.code || e.message) || e);
+        return false; // resolved, not rejected -> safe for the untracked debounced setTimeout(cloudPushNow) call too
+      });
   }
   function cloudPush() {
     if (pulling || !auth || !Cloud.configured()) return;
@@ -1068,7 +1072,10 @@
     if (lastKnownShiftCount > 0 && Object.keys(state.shifts).length === 0) return;
     clearTimeout(pushTimer); pushTimer = null;
     markPendingPush();
-    cloudPushNow();
+    // Unlike the routine debounced path, this follows a discrete action the user is
+    // actively watching — surface a failure instead of leaving it in a small sync label
+    // in Settings that's easy to never notice.
+    cloudPushNow().then(function (ok) { if (!ok) toast(t('sync_offline')); });
   }
   // The debounce above saves a network call on every keystroke, but it also means a
   // write sits unsynced for up to 700ms. On mobile the OS can kill a backgrounded app's

@@ -1,5 +1,5 @@
 /* ShiftPay service worker — network-first (always fresh when online, cache fallback offline). */
-var CACHE = 'shiftpay-v38';
+var CACHE = 'shiftpay-v39';
 var ASSETS = [
   './',
   './index.html',
