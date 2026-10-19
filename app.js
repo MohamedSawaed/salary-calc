@@ -9,7 +9,7 @@
   // Bump alongside service-worker.js's CACHE version on every deploy. Shown at the
   // bottom of Settings so it's possible to confirm which build is actually running on a
   // device instead of guessing from symptoms alone.
-  var APP_BUILD = 'v37';
+  var APP_BUILD = 'v38';
   var $ = function (id) { return document.getElementById(id); };
 
   /* ---------------- state ---------------- */

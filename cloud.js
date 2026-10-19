@@ -87,7 +87,8 @@
           try {
             var o = JSON.parse(f.data.stringValue);
             return { name: o.profile && o.profile.name, hourlyWage: o.profile && o.profile.rate,
-              currency: o.profile && o.profile.currency, shifts: o.shifts || {} };
+              currency: o.profile && o.profile.currency, extras: (o.profile && o.profile.extras) || [],
+              tax: o.profile && o.profile.tax, shifts: o.shifts || {} };
           } catch (e) { return null; }
         }
         return fromFs({ mapValue: { fields: f } });
@@ -95,7 +96,7 @@
     });
   }
 
-  /** obj = { name, hourlyWage, currency, email, shifts }. Stored as separate readable fields. */
+  /** obj = { name, hourlyWage, currency, email, extras, tax, shifts }. Stored as separate readable fields. */
   function save(uid, idToken, obj) {
     var fields = {
       name: toFs(obj.name || ''),
@@ -103,6 +104,7 @@
       currency: toFs(obj.currency || ''),
       email: toFs(obj.email || ''),
       extras: toFs(obj.extras || []),
+      tax: toFs(obj.tax || {}),
       updatedAt: { timestampValue: new Date().toISOString() },
       shifts: toFs(obj.shifts || {})
     };
@@ -140,7 +142,7 @@
           var f = doc.fields || {};
           var obj;
           if (f.data && f.data.stringValue) { // legacy blob
-            try { var o = JSON.parse(f.data.stringValue); obj = { name: o.profile && o.profile.name, hourlyWage: o.profile && o.profile.rate, currency: o.profile && o.profile.currency, shifts: o.shifts || {} }; }
+            try { var o = JSON.parse(f.data.stringValue); obj = { name: o.profile && o.profile.name, hourlyWage: o.profile && o.profile.rate, currency: o.profile && o.profile.currency, extras: (o.profile && o.profile.extras) || [], tax: o.profile && o.profile.tax, shifts: o.shifts || {} }; }
             catch (e) { obj = {}; }
           } else { obj = fromFs({ mapValue: { fields: f } }) || {}; }
           obj.uid = uid;
